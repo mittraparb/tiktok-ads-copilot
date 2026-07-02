@@ -12,6 +12,7 @@ import {
   type LucideIcon,
   Video,
 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/dashboard/app-shell";
@@ -203,6 +204,12 @@ export default function VideosPage() {
                 <div className="mt-3 rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-zinc-600">
                   Mock data only / TikTok API not connected yet
                 </div>
+                <Link
+                  href="/api/tiktok/connect"
+                  className="mt-3 inline-flex h-8 items-center justify-center rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800"
+                >
+                  Connect TikTok Sandbox
+                </Link>
               </div>
             </div>
           </CardContent>

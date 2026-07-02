@@ -609,7 +609,7 @@ Goal:
 
 ID: TAD-045
 Type: Task
-Status: Ready
+Status: Needs Review
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -619,20 +619,138 @@ Scope:
 - Implement Sandbox-only OAuth connect and callback using official TikTok Login Kit.
 - Use only env variables prepared by TAD-044.
 - Keep secrets server-side.
+- Add a user-facing Connect with TikTok entry point that redirects to the server connect route.
+- Verify OAuth state in the callback before exchanging the authorization code.
+- Exchange the authorization code for a TikTok user access token without logging or exposing token values.
 Out of scope:
 - Production credentials.
 - TikTok Business API.
 - Scraping or browser automation.
 - Payment.
+- Database persistence.
+- Video sync or replacing mock videos with real TikTok videos.
 Acceptance criteria:
-- To be defined before implementation starts.
+- `GET /api/tiktok/connect` redirects to TikTok Login Kit with `response_type=code`, requested scopes, configured redirect URI, and CSRF state.
+- `GET /api/tiktok/callback` validates state, handles user-denied errors gracefully, exchanges `code` at TikTok's token endpoint, and never prints token values.
+- A visible Connect with TikTok link exists for manual Sandbox testing.
+- Missing env configuration returns a safe error without revealing secret values.
+- No TikTok token values are written to docs, logs, client components, `.env.example`, task board, or project status.
 Dependencies:
 - TAD-044
 Expected files:
-- To be defined before implementation starts.
+- `apps/web/src/app/api/tiktok/connect/route.ts`
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/lib/tiktok-oauth.ts`
+- `apps/web/src/app/page.tsx`
+- `apps/web/src/app/videos/page.tsx`
+- `docs/task-board.md`
+- `docs/project-status.md`
 Notes:
 - Next recommended task after TAD-044.
 - Do not start until Sandbox credentials and redirect URI are ready outside the repository.
+- Started on 2026-07-02 after user confirmed local env values were set.
+- Implemented Sandbox OAuth connect and callback routes using TikTok Login Kit.
+- Callback exchanges `code` for a TikTok user access token server-side, but token persistence is intentionally not included in this task.
+- Manual TikTok Sandbox login must be tested by the user because it requires their TikTok account and Sandbox app setup.
+- Local dev review is blocked by an existing Next dev process on port 3000 with `write EPIPE` errors; user should stop/restart that process or explicitly approve stopping it before local OAuth testing.
+Files changed:
+- `apps/web/src/app/api/tiktok/connect/route.ts`
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/lib/tiktok-oauth.ts`
+- `apps/web/src/app/page.tsx`
+- `apps/web/src/app/videos/page.tsx`
+- `docs/task-board.md`
+- `docs/project-status.md`
+Build/lint/test result:
+- `pnpm lint` passed on 2026-07-02 using the bundled pnpm runtime.
+- `pnpm build` initially failed inside the sandbox because Turbopack could not bind a local worker port; rerunning outside the sandbox passed on 2026-07-02.
+- `pnpm dev` could not start a fresh server because another Next dev process for this project is already running on port 3000.
+Last updated:
+- 2026-07-02
+
+### TAD-046
+
+ID: TAD-046
+Type: Task
+Status: Blocked
+Priority: P0 critical
+Epic: TikTok Authentication
+Story: Authenticate with TikTok and test
+Title: Persist TikTok OAuth tokens securely
+Goal: Store TikTok user access and refresh tokens securely after Sandbox OAuth succeeds.
+Scope:
+- Use the existing Prisma draft models for `User`, `TikTokAccount`, and `TikTokToken`.
+- Encrypt access and refresh tokens server-side before storage.
+- Use `DATABASE_URL` and `TOKEN_ENCRYPTION_KEY` only from server environment variables.
+- Persist connected account metadata needed for later video sync.
+Out of scope:
+- TikTok video sync.
+- Replacing mock `/videos` data.
+- Production credentials.
+- TikTok Business API.
+- Scraping or browser automation.
+Acceptance criteria:
+- Tokens are never exposed to browser/client components.
+- Tokens are never logged.
+- Token values are encrypted before database storage.
+- Token persistence handles expiry metadata.
+- No real secret values are written into repository files or docs.
+Dependencies:
+- TAD-045 manual Sandbox login review.
+- Valid `DATABASE_URL`.
+- Valid `TOKEN_ENCRYPTION_KEY`.
+Expected files:
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/lib/prisma.ts`
+- `apps/web/src/lib/tiktok-oauth.ts`
+- token encryption helper file to be defined
+- `docs/task-board.md`
+- `docs/project-status.md`
+Notes:
+- Created after TAD-045 to keep token persistence separate from the first Login Kit proof.
+Files changed:
+- None yet.
+Build/lint/test result:
+- Not run yet.
+Last updated:
+- 2026-07-02
+
+### TAD-047
+
+ID: TAD-047
+Type: Task
+Status: Backlog
+Priority: P0 critical
+Epic: TikTok Authentication
+Story: Authenticate with TikTok and test
+Title: Sync first page of TikTok videos from Display API
+Goal: Retrieve the connected user's first page of public TikTok videos through the official TikTok Display API.
+Scope:
+- Use the persisted TikTok user token from TAD-046.
+- Fetch the first page only with `max_count = 20`.
+- Store or expose Display API-shaped video rows for the Video Library.
+- Preserve manual Load More behavior for later pagination.
+Out of scope:
+- Auto-looping through all pages.
+- Fetching all videos at once.
+- TikTok Business API.
+- Scraping or browser automation.
+- Paid CSV analysis.
+Acceptance criteria:
+- The sync uses official TikTok Display API only.
+- Initial sync fetches only the first page.
+- No access token or refresh token is exposed to the client.
+- `/videos` can be prepared to swap from mock rows to synced rows in a later UI task.
+Dependencies:
+- TAD-046.
+Expected files:
+- `apps/web/src/app/api/tiktok/sync-videos/route.ts`
+- `apps/web/src/lib/tiktok-display-api.ts`
+- `apps/web/src/lib/prisma.ts`
+- `docs/task-board.md`
+- `docs/project-status.md`
+Notes:
+- Created after TAD-045 to keep real video retrieval separate from OAuth login.
 Files changed:
 - None yet.
 Build/lint/test result:

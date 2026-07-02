@@ -6,7 +6,7 @@ Current phase:
 - Phase 1: Mock Product UI
 
 Current goal:
-- Prepare for safe TikTok Sandbox OAuth testing through Vercel deployment readiness and environment documentation only. TAD-044 Vercel deployment and Sandbox readiness is complete; the next must-do operational step is deploying `apps/web` to Vercel Hobby/free and configuring TikTok Developer Portal URLs from that stable domain. After that, start TAD-045, `Implement TikTok OAuth connect and callback for Sandbox testing only`.
+- Review TAD-045 TikTok Sandbox OAuth login. The app now has server routes for TikTok Login Kit connect/callback and visible Connect with TikTok links. The next must-do step is manual Sandbox login testing with the user's TikTok account; token persistence and video sync remain separate follow-up tasks.
 
 Current stack:
 - Next.js App Router
@@ -41,9 +41,11 @@ Current product direction:
   - `apps/web/src/app/videos/page.tsx` exists.
   - `apps/web/src/app/terms/page.tsx` exists.
   - `apps/web/src/app/privacy/page.tsx` exists.
+  - `apps/web/src/app/api/tiktok/connect/route.ts` exists.
+  - `apps/web/src/app/api/tiktok/callback/route.ts` exists.
   - `/videos/[id]` is missing.
   - `/reports/preview` is missing and is now treated as a later Phase 1B task, not required before TikTok API planning.
-  - No API routes exist under `apps/web/src/app/api` yet.
+  - TikTok OAuth API routes exist for Sandbox login testing, but video sync routes do not exist yet.
 - Existing components: Partial
   - Dashboard components exist: `app-shell.tsx`, `recommendation-badge.tsx`, `spend-views-chart.tsx`.
   - shadcn/ui-style primitives exist for badge, button, card, dialog, dropdown menu, input, progress, select, separator, table, tabs, and textarea.
@@ -62,7 +64,9 @@ Current product direction:
   - TAD-021 monthly trend benchmark scoring is Done after repository inspection.
   - TAD-043 developer compliance pages are Done.
   - TAD-044 Vercel deployment and TikTok Sandbox readiness is Done.
-  - TAD-045 Sandbox-only OAuth connect/callback is Ready but not started.
+  - TAD-045 Sandbox-only OAuth connect/callback is Needs Review.
+  - TAD-046 token persistence is Blocked until TAD-045 is manually reviewed and database/encryption env values are ready.
+  - TAD-047 first-page TikTok video sync is Backlog and depends on TAD-046.
   - TAD-050 Prisma schema review is Done after repository inspection.
 - Existing docs: Partial
   - `AGENTS.md` exists.
@@ -116,6 +120,7 @@ Current product direction:
 | 2026-07-02 | Planning | TAD-004 cleaned up documentation consistency for phase numbering, Phase 1 scope, next task, and TikTok Display API pagination wording. | `AGENTS.md`, `docs/project-status.md`, `docs/task-board.md`, `docs/tiktok-display-api-plan.md` | Documentation-only task. Build not run because no application code changed. |
 | 2026-07-02 | Phase 1: Mock Product UI | TAD-043 added public developer compliance pages for TikTok app setup. | `apps/web/src/app/page.tsx`, `apps/web/src/app/terms/page.tsx`, `apps/web/src/app/privacy/page.tsx`, `docs/task-board.md`, `docs/project-status.md` | Public landing page now replaces the dashboard redirect. Terms and Privacy pages describe TikTok OAuth/Login Kit, Display API metrics, no passwords/cookies/copied tokens, no scraping/engagement automation, and disconnect/deletion requests. No OAuth, API calls, payment, or database changes. |
 | 2026-07-02 | Phase 4: Real TikTok OAuth + Video Sync | TAD-044 prepared Vercel deployment and TikTok Sandbox readiness documentation without exposing secrets. | `docs/vercel-deployment-checklist.md`, `docs/vercel-vs-ngrok.md`, `docs/tiktok-sandbox-readiness.md`, `apps/web/src/app/terms/page.tsx`, `apps/web/src/app/privacy/page.tsx`, `docs/task-board.md`, `docs/project-status.md` | Documentation/compliance-copy task. Vercel Hobby/free settings and TikTok URL formats are documented; ngrok is documented as temporary local debugging only. No OAuth code, TikTok API calls, API routes, Prisma schema changes, migrations, or real secret values were added. `pnpm lint` and `pnpm build` passed on 2026-07-02. |
+| 2026-07-02 | Phase 4: Real TikTok OAuth + Video Sync | TAD-045 implemented TikTok Sandbox OAuth connect and callback routes. | `apps/web/src/app/api/tiktok/connect/route.ts`, `apps/web/src/app/api/tiktok/callback/route.ts`, `apps/web/src/lib/tiktok-oauth.ts`, `apps/web/src/app/page.tsx`, `apps/web/src/app/videos/page.tsx`, `docs/task-board.md`, `docs/project-status.md` | Needs manual Sandbox login review by the user. Code adds a CSRF state cookie, redirects to TikTok Login Kit, validates state on callback, exchanges code server-side, and does not print or persist access/refresh token values. Token persistence and video sync are separate follow-up tasks. |
 
 ## 4. Current In-Progress Work
 
@@ -129,6 +134,7 @@ Current product direction:
 | Phase 1 | Mock Product UI | Partial | `/dashboard` route, `/videos` route, app shell, metric cards, primary recommendation, spend vs views chart, top videos table, Video Library, benchmark comparison, and mock Pre-Boost scoring exist. | Add required `/videos/[id]` video detail route. Treat `/reports/preview`, CSV upload mock UI, campaign table polish, and brand report preview as later Phase 1B tasks. | Codex |
 | Phase 3 | Database Foundation draft | Reviewed draft | Prisma schema exists for `User`, `TikTokAccount`, `TikTokToken`, `TikTokVideo`, and `PreBoostScore`; TAD-050 reviewed it. | Add migrations and later models only when database work is explicitly requested. | Codex |
 | Phase 4 | TAD-044 Vercel deployment and TikTok Sandbox readiness | Done | Public `/`, `/terms`, and `/privacy` were verified; Vercel deployment settings, TikTok URL formats, Sandbox credential guidance, env variable names, `.env.example`, and `.gitignore` protections are documented. | Deploy to Vercel manually, then configure TikTok Developer Portal URLs from the deployed Vercel domain. Put real values only in `apps/web/.env.local` or Vercel Environment Variables outside the repository. | Codex |
+| Phase 4 | TAD-045 TikTok OAuth connect/callback | Needs Review | `/api/tiktok/connect`, `/api/tiktok/callback`, server-side OAuth helper, and visible Connect with TikTok links are implemented; lint/build passed. | User must manually test Sandbox login with their TikTok account. Token persistence and video sync stay out of scope. | Codex |
 
 ## 5. Pending Work / Backlog
 
@@ -208,7 +214,9 @@ Notes:
 - Must use official OAuth/Login Kit and TikTok Display API only.
 - Do not add scraping, browser automation, password collection, cookie extraction, or engagement automation.
 - TAD-044 Vercel deployment and Sandbox readiness is Done.
-- TAD-045 is Ready for Sandbox-only OAuth connect/callback implementation after real Sandbox credentials are configured outside the repository.
+- TAD-045 is Needs Review for Sandbox-only OAuth connect/callback implementation after real Sandbox credentials are configured outside the repository.
+- TAD-046 is Blocked until TAD-045 manual login review passes and database/encryption env values are ready.
+- TAD-047 is Backlog and will sync the first page of TikTok videos only after tokens are persisted.
 - Use Vercel as the stable public URL for TikTok Developer Portal setup:
   - Web/Desktop URL: `https://your-vercel-domain`
   - Terms URL: `https://your-vercel-domain/terms`
@@ -265,6 +273,7 @@ Notes:
 
 - No known app bugs from TAD-044.
 - The build command still requires an outside-sandbox rerun because Turbopack cannot bind a local worker port inside the sandbox.
+- Local dev server review for TAD-045 needs a clean restart: an existing Next dev process for this project is holding port 3000 and has `write EPIPE` errors in `.next/dev/logs/next-development.log`.
 - Task-board finding: TAD-050 was referenced by the user but did not exist on the board before this reconciliation; it has now been added and marked Done with schema-review notes.
 
 ## 8. Risks / Open Questions
@@ -272,9 +281,9 @@ Notes:
 | Risk / Question | Impact | Current thinking | Next step |
 |---|---|---|---|
 | TikTok Developer app approval requirements | Could block real OAuth/video access in Phase 4. | Plan around official Login Kit and Display API scopes only. | Confirm requirements before Phase 4 implementation. |
-| TikTok Display API scope approval | `video.list` may require review or setup before testing. | Phase 1 should stay mock-only; Phase 2 and Phase 4 should prepare for approval constraints. | Review current TikTok developer account readiness later. |
+| TikTok Display API scope approval | `video.list` may require review or setup before testing. | OAuth connect/callback is implemented, but real video sync is separated into TAD-047. | Confirm `video.list` is enabled before starting TAD-047. |
 | Token encryption approach | Weak encryption could create security risk for stored tokens. | Use server-only authenticated encryption with `TOKEN_ENCRYPTION_KEY`. | Decide exact implementation before token storage. |
-| Sandbox credentials readiness | Missing Sandbox credentials or redirect URI mismatch would block OAuth testing. | TAD-044 documents Sandbox credential requirements, env names, redirect URI, scope checklist, Vercel URL formats, and blockers. | Deploy to Vercel, configure TikTok Sandbox URLs, then configure real values only in `apps/web/.env.local` or Vercel Environment Variables before TAD-045. |
+| Sandbox credentials readiness | Missing Sandbox credentials or redirect URI mismatch would block OAuth testing. | TAD-045 is implemented, but manual login review depends on correct Sandbox credentials, tester setup, scopes, and redirect URI. | Run the TikTok Sandbox login flow from `/api/tiktok/connect`; if testing on Vercel, add env values in Vercel and redeploy first. |
 | Whether TikTok Display API data is enough for a useful Pre-Boost Score | Score quality may be limited without watch time, completion rate, saves, or retention. | Keep formula deterministic and based only on available fields; add optional manual inputs later if needed. | Validate scoring with sample creator videos once available. |
 | Whether user auth is needed before TikTok OAuth | Real OAuth needs a local user identity and session model. | Avoid adding auth provider until explicitly requested. | Decide before Phase 4. |
 | Database provider choice: Neon vs Supabase Postgres | Affects env setup, connection pooling, and deployment. | Both fit the planned stack. | Pick provider before migrations are finalized. |
@@ -284,10 +293,10 @@ Notes:
 ## 9. Next Recommended Action
 
 Next action:
-- Manually deploy `apps/web` to Vercel Hobby/free using the documented settings, then configure TikTok Developer Portal Sandbox URLs from the deployed Vercel domain. After that, implement TAD-045, `Implement TikTok OAuth connect and callback for Sandbox testing only`.
+- Stop or restart the existing local Next dev process on port 3000, then manually test TAD-045 by opening `/api/tiktok/connect` with Sandbox credentials configured. If testing production, add the same env values in Vercel and redeploy first. After a successful Sandbox login review, start TAD-046, `Persist TikTok OAuth tokens securely`.
 
 Why:
-- TAD-044 Vercel deployment and Sandbox readiness is complete. TikTok needs stable public app, terms, privacy, and redirect URLs before Sandbox OAuth testing; Vercel provides that stable HTTPS URL, while ngrok should stay limited to temporary local debugging. TAD-045 should remain Sandbox-only and must not use Production credentials.
+- TAD-045 proves the Login Kit redirect/callback flow before any database token persistence or real video sync work. TikTok Display API video retrieval needs persisted, server-side tokens, so it belongs after the manual OAuth review.
 
 ## 10. Mandatory Task Board Workflow
 
