@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String?         @unique
+  name            String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  tikTokAccounts  TikTokAccount[]
+}
+
+model TikTokAccount {
+  id           String        @id @default(cuid())
+  userId       String
+  openId       String        @unique
+  unionId      String?
+  displayName  String?
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  lastSyncedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        TikTokToken?
+  videos       TikTokVideo[]
+
+  @@index([userId])
+}
+
+model TikTokToken {
+  id                    String        @id @default(cuid())
+  tikTokAccountId        String        @unique
+  encryptedAccessToken   String
+  encryptedRefreshToken  String
+  expiresAt             DateTime
+  refreshExpiresAt      DateTime
+  scope                 String
+  tokenType             String        @default("Bearer")
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  tikTokAccount         TikTokAccount @relation(fields: [tikTokAccountId], references: [id], onDelete: Cascade)
+}
+
+model TikTokVideo {
+  id                String           @id @default(cuid())
+  tikTokAccountId   String
+  tikTokVideoId     String
+  title             String?
+  videoDescription  String?
+  shareUrl          String?
+  coverImageUrl     String?
+  duration          Int?
+  createTime        DateTime
+  viewCount         BigInt           @default(0)
+  likeCount         Int              @default(0)
+  commentCount      Int              @default(0)
+  shareCount        Int              @default(0)
+  lastSyncedAt      DateTime         @default(now())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  tikTokAccount     TikTokAccount    @relation(fields: [tikTokAccountId], references: [id], onDelete: Cascade)
+  preBoostScores    PreBoostScore[]
+
+  @@unique([tikTokAccountId, tikTokVideoId])
+  @@index([tikTokAccountId, createTime])
+}
+
+model PreBoostScore {
+  id              String      @id @default(cuid())
+  tikTokVideoId   String
+  score           Int
+  recommendation  String
+  suggestedBudget Int?
+  reasons         Json
+  risks           Json
+  metrics         Json?
+  formulaVersion  String
+  createdAt       DateTime    @default(now())
+
+  tikTokVideo     TikTokVideo @relation(fields: [tikTokVideoId], references: [id], onDelete: Cascade)
+
+  @@index([tikTokVideoId, createdAt])
+}
