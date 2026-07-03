@@ -335,3 +335,12 @@ After completing any future task:
 7. Update docs/project-status.md.
 8. Set the next recommended action.
 9. Summarize the task ID, result, files changed, and next task.
+
+End-of-day closeout rule:
+1. When the user says the work is done for today, summarize what was completed during the day.
+2. Update task/status docs.
+3. Run required verification for unverified code changes.
+4. Commit and push safe code/docs changes to git.
+5. Keep secrets and local-only files out of git.
+6. Stop running local app processes, tunnels, and dev servers started for the work, including Next.js and ngrok, to avoid battery/CPU drain.
+7. Report what was pushed and what was stopped.

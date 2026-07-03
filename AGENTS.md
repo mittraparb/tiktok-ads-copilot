@@ -453,3 +453,12 @@ After completing any future task:
 7. Update docs/project-status.md.
 8. Set the next recommended action.
 9. Summarize the task ID, result, files changed, and next task.
+
+When the user says the work is done for today:
+1. Summarize what was completed during the day.
+2. Update docs/task-board.md and docs/project-status.md.
+3. Run required verification if there are unverified code changes.
+4. Commit and push safe code/docs changes to git.
+5. Do not commit secrets or local-only files such as `.env.local` or `.ngrok/ngrok.yml`.
+6. Stop/close running local app processes, tunnels, and dev servers started for the work, including Next.js and ngrok, so they do not keep consuming battery or CPU.
+7. Report what was pushed and which processes were stopped.
