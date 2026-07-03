@@ -609,7 +609,7 @@ Goal:
 
 ID: TAD-045
 Type: Task
-Status: Needs Review
+Status: Done
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -630,8 +630,8 @@ Out of scope:
 - Database persistence.
 - Video sync or replacing mock videos with real TikTok videos.
 Acceptance criteria:
-- `GET /api/tiktok/connect` redirects to TikTok Login Kit with `response_type=code`, requested scopes, configured redirect URI, and CSRF state.
-- `GET /api/tiktok/callback` validates state, handles user-denied errors gracefully, exchanges `code` at TikTok's token endpoint, and never prints token values.
+- `GET /api/tiktok/connect` redirects to TikTok Login Kit with `response_type=code`, requested scopes, configured redirect URI, CSRF state, and PKCE `code_challenge` using `S256`.
+- `GET /api/tiktok/callback` validates state, handles user-denied errors gracefully, exchanges `code` with the matching PKCE `code_verifier` at TikTok's token endpoint, and never prints token values.
 - A visible Connect with TikTok link exists for manual Sandbox testing.
 - Missing env configuration returns a safe error without revealing secret values.
 - No TikTok token values are written to docs, logs, client components, `.env.example`, task board, or project status.
@@ -650,23 +650,54 @@ Notes:
 - Do not start until Sandbox credentials and redirect URI are ready outside the repository.
 - Started on 2026-07-02 after user confirmed local env values were set.
 - Implemented Sandbox OAuth connect and callback routes using TikTok Login Kit.
+- Added PKCE support after TikTok login returned a `code_challenge` app settings error: the connect route now sends `code_challenge` and `code_challenge_method=S256`; the callback route sends the matching server-only `code_verifier` during token exchange.
+- Investigated TikTok `redirect_uri` login error on 2026-07-03. The running local app was sending `https://tiktok-ads-copilot.vercel.app/api/tiktok/callback`; local `.env.local` was aligned for local testing to send `http://localhost:3000/api/tiktok/callback` instead.
+- After local env alignment and dev-server restart, `/api/tiktok/connect` returns a TikTok redirect with `redirect_uri=http://localhost:3000/api/tiktok/callback`, scopes `user.info.basic,video.list`, and PKCE `code_challenge_method=S256`.
+- TikTok Developer Portal Sandbox settings must contain the exact same redirect URI as the running app; otherwise TikTok will continue to reject login with `redirect_uri` before the app callback runs.
+- TikTok Developer Portal does not accept localhost redirect URIs for this app setup, so local Sandbox OAuth testing needs an HTTPS tunnel such as ngrok.
+- Attempted to start ngrok on 2026-07-03 with `pnpm dlx ngrok http 3000`; ngrok failed with `ERR_NGROK_4018` because no ngrok authtoken is configured on this machine. The token must be configured locally by the user and must not be pasted into chat, docs, or committed files.
+- Added `.ngrok/ngrok.yml.example` and ignored `.ngrok/ngrok.yml` so the user can place their ngrok authtoken in a local config file without committing it.
+- Started ngrok successfully on 2026-07-03 using the local ignored config. Active tunnel: `https://ravishing-refusal-abrasive.ngrok-free.dev`.
+- Updated local `.env.local` URL fields to use the ngrok tunnel for TAD-045 testing. The running connect route now sends `redirect_uri=https://ravishing-refusal-abrasive.ngrok-free.dev/api/tiktok/callback`.
+- After a successful Sandbox login on 2026-07-03, updated the `/videos` connected account card to read server-side OAuth status cookies and show a real connected Login Kit state instead of the mock-account-only message.
+- The connected account card now shows safe session metadata only: connected state, granted scopes, and session expiry. It does not display or persist access tokens, refresh tokens, copied credentials, cookies, or real video data.
+- `/videos` was split into a server wrapper and client component so the page can read httpOnly OAuth cookies while preserving the existing interactive filter/sort UI.
+- Updated the callback to fetch TikTok Display API `/v2/user/info/` after token exchange and store safe connected account metadata in an httpOnly cookie. The card can now show real display name, avatar, username, verification badge, public video count, followers, following, and likes when TikTok grants the required scopes.
+- Expanded Sandbox Login Kit requested scopes to `user.info.basic`, `user.info.profile`, `user.info.stats`, and `video.list`. `user.info.stats` is required for total public video count and account stats; if TikTok does not grant it, the UI shows an unavailable/scope-needed state instead of fake values.
+- Fixed stale connected-account state on 2026-07-03: `/api/tiktok/connect` now clears previous connected-account cookies before starting a new OAuth flow, and `/videos` no longer treats an old `tad_tiktok_connected=1` cookie as a complete account unless the real profile cookie exists.
+- The callback now rejects successful token exchange when TikTok does not grant the scopes required for the card values, and shows the missing scope names instead of setting a misleading connected state.
 - Callback exchanges `code` for a TikTok user access token server-side, but token persistence is intentionally not included in this task.
-- Manual TikTok Sandbox login must be tested by the user because it requires their TikTok account and Sandbox app setup.
-- Local dev review is blocked by an existing Next dev process on port 3000 with `write EPIPE` errors; user should stop/restart that process or explicitly approve stopping it before local OAuth testing.
+- Manual TikTok Sandbox login succeeded on 2026-07-03; connected account card behavior was implemented and verified with safe profile-cookie checks.
+- Local dev server was restarted successfully on port 3000 after clearing the old stuck process.
 Files changed:
+- `.gitignore`
+- `.ngrok/ngrok.yml.example`
 - `apps/web/src/app/api/tiktok/connect/route.ts`
 - `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/app/videos/page.tsx`
+- `apps/web/src/app/videos/videos-client-page.tsx`
 - `apps/web/src/lib/tiktok-oauth.ts`
 - `apps/web/src/app/page.tsx`
-- `apps/web/src/app/videos/page.tsx`
 - `docs/task-board.md`
 - `docs/project-status.md`
 Build/lint/test result:
 - `pnpm lint` passed on 2026-07-02 using the bundled pnpm runtime.
 - `pnpm build` initially failed inside the sandbox because Turbopack could not bind a local worker port; rerunning outside the sandbox passed on 2026-07-02.
 - `pnpm dev` could not start a fresh server because another Next dev process for this project is already running on port 3000.
+- PKCE fix verification: `pnpm lint` passed on 2026-07-02 after rerunning with registry/network access for pnpm's dependency check.
+- PKCE fix verification: `pnpm build` hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-02 when rerun outside the sandbox.
+- Redirect URI troubleshooting verification: local dev server was restarted on 2026-07-03 and `/api/tiktok/connect` was checked without printing client key or secrets. It now sends the local callback URL from `.env.local`.
+- ngrok tunnel verification passed on 2026-07-03. Localhost and ngrok root both returned HTTP 200, and `/api/tiktok/connect` redirects to TikTok with the ngrok callback URL plus PKCE `S256`.
+- Connected account card verification passed on 2026-07-03. Without OAuth cookies, `/videos` renders the mock/disconnected state; with safe connected cookies, `/videos` renders the connected Sandbox state, granted scopes, and reconnect action.
+- `pnpm lint` passed on 2026-07-03 after the connected account card update.
+- `pnpm build` hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-03 when rerun outside the sandbox.
+- Real profile card verification passed on 2026-07-03 with safe fake profile cookies. The card rendered display name, username, verified badge, public video count, follower/following/like labels, and reconnect action.
+- TikTok connect redirect verification passed on 2026-07-03 with the ngrok callback URL, PKCE `S256`, and requested scopes `user.info.basic,user.info.profile,user.info.stats,video.list`.
+- Stale connected-cookie verification passed on 2026-07-03. A legacy `tad_tiktok_connected=1` cookie without profile metadata now renders a reconnect-required state instead of generic `TikTok Sandbox account` / unavailable stats.
+- Complete profile-cookie verification passed on 2026-07-03. Safe fake profile data rendered display name, username, verification badge, total public videos, followers, following, likes, and reconnect action.
+- Manual TikTok Sandbox login succeeded on 2026-07-03, and the user confirmed the milestone before closeout.
 Last updated:
-- 2026-07-02
+- 2026-07-03
 
 ### TAD-046
 

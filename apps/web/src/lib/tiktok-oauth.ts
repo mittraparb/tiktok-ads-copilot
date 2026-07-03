@@ -1,9 +1,21 @@
+import { createHash, randomBytes } from "node:crypto";
+
 const TIKTOK_AUTHORIZATION_URL = "https://www.tiktok.com/v2/auth/authorize/";
 const TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/";
+const TIKTOK_USER_INFO_URL = "https://open.tiktokapis.com/v2/user/info/";
 
 export const TIKTOK_OAUTH_STATE_COOKIE = "tad_tiktok_oauth_state";
+export const TIKTOK_CODE_VERIFIER_COOKIE = "tad_tiktok_code_verifier";
 export const TIKTOK_CONNECTED_COOKIE = "tad_tiktok_connected";
-export const TIKTOK_OAUTH_SCOPES = ["user.info.basic", "video.list"] as const;
+export const TIKTOK_CONNECTED_EXPIRES_AT_COOKIE = "tad_tiktok_connected_expires_at";
+export const TIKTOK_CONNECTED_PROFILE_COOKIE = "tad_tiktok_connected_profile";
+export const TIKTOK_CONNECTED_SCOPES_COOKIE = "tad_tiktok_connected_scopes";
+export const TIKTOK_OAUTH_SCOPES = [
+  "user.info.basic",
+  "user.info.profile",
+  "user.info.stats",
+  "video.list",
+] as const;
 
 export type TikTokOAuthConfig = {
   appEnv: "sandbox";
@@ -27,6 +39,19 @@ export type TikTokTokenFailure = {
   status: number;
   error: string;
   errorDescription: string;
+};
+
+export type TikTokUserProfile = {
+  avatarUrl?: string;
+  displayName?: string;
+  followerCount?: number;
+  followingCount?: number;
+  isVerified?: boolean;
+  likesCount?: number;
+  openId: string;
+  profileDeepLink?: string;
+  username?: string;
+  videoCount?: number;
 };
 
 export function getTikTokOAuthConfig():
@@ -78,11 +103,14 @@ export function getTikTokOAuthConfig():
 
 export function buildTikTokAuthorizationUrl(
   config: TikTokOAuthConfig,
-  state: string
+  state: string,
+  codeChallenge: string
 ) {
   const url = new URL(TIKTOK_AUTHORIZATION_URL);
 
   url.searchParams.set("client_key", config.clientKey);
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", TIKTOK_OAUTH_SCOPES.join(","));
   url.searchParams.set("redirect_uri", config.redirectUri);
@@ -91,11 +119,22 @@ export function buildTikTokAuthorizationUrl(
   return url;
 }
 
+export function generateTikTokPkcePair() {
+  const codeVerifier = randomBytes(64).toString("base64url");
+  const codeChallenge = createHash("sha256")
+    .update(codeVerifier)
+    .digest("hex");
+
+  return { codeChallenge, codeVerifier };
+}
+
 export async function exchangeTikTokAuthorizationCode({
   code,
+  codeVerifier,
   config,
 }: {
   code: string;
+  codeVerifier: string;
   config: TikTokOAuthConfig;
 }): Promise<
   | { ok: true; token: TikTokTokenSuccess }
@@ -105,6 +144,7 @@ export async function exchangeTikTokAuthorizationCode({
     client_key: config.clientKey,
     client_secret: config.clientSecret,
     code,
+    code_verifier: codeVerifier,
     grant_type: "authorization_code",
     redirect_uri: config.redirectUri,
   });
@@ -139,8 +179,74 @@ export async function exchangeTikTokAuthorizationCode({
   return { ok: true, token: payload };
 }
 
+export async function fetchTikTokUserProfile({
+  accessToken,
+  scope,
+}: {
+  accessToken: string;
+  scope: string;
+}): Promise<
+  | { ok: true; profile: TikTokUserProfile }
+  | { ok: false; failure: TikTokTokenFailure }
+> {
+  const fields = getUserInfoFields(scope);
+  const url = new URL(TIKTOK_USER_INFO_URL);
+
+  url.searchParams.set("fields", fields.join(","));
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    cache: "no-store",
+  });
+  const payload: unknown = await response.json().catch(() => null);
+
+  if (!response.ok || !isTikTokUserInfoSuccess(payload)) {
+    const errorPayload = isTikTokApiError(payload) ? payload.error : null;
+
+    return {
+      ok: false,
+      failure: {
+        status: response.status,
+        error: errorPayload?.code ?? "user_info_failed",
+        errorDescription:
+          errorPayload?.message ??
+          "TikTok did not return valid user profile information.",
+      },
+    };
+  }
+
+  return { ok: true, profile: mapTikTokUserProfile(payload.data.user) };
+}
+
 export function shouldUseSecureCookie(redirectUri: string) {
   return redirectUri.startsWith("https://");
+}
+
+function getUserInfoFields(scope: string) {
+  const grantedScopes = new Set(
+    scope
+      .split(/[,\s]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+  const fields = ["open_id", "avatar_url", "display_name"];
+
+  if (grantedScopes.has("user.info.profile")) {
+    fields.push("username", "profile_deep_link", "is_verified");
+  }
+
+  if (grantedScopes.has("user.info.stats")) {
+    fields.push(
+      "follower_count",
+      "following_count",
+      "likes_count",
+      "video_count"
+    );
+  }
+
+  return fields;
 }
 
 function isValidAbsoluteUrl(value: string) {
@@ -184,4 +290,62 @@ function isTikTokTokenError(
     (typeof error.error_description === "string" ||
       typeof error.error_description === "undefined")
   );
+}
+
+function isTikTokUserInfoSuccess(
+  value: unknown
+): value is { data: { user: Record<string, unknown> } } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const data = payload.data as Record<string, unknown> | undefined;
+  const user = data?.user;
+
+  return Boolean(
+    user &&
+      typeof user === "object" &&
+      typeof (user as Record<string, unknown>).open_id === "string"
+  );
+}
+
+function isTikTokApiError(
+  value: unknown
+): value is { error: { code?: string; message?: string } } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const error = payload.error;
+
+  return Boolean(error && typeof error === "object");
+}
+
+function mapTikTokUserProfile(user: Record<string, unknown>): TikTokUserProfile {
+  return {
+    avatarUrl: optionalString(user.avatar_url),
+    displayName: optionalString(user.display_name),
+    followerCount: optionalNumber(user.follower_count),
+    followingCount: optionalNumber(user.following_count),
+    isVerified: optionalBoolean(user.is_verified),
+    likesCount: optionalNumber(user.likes_count),
+    openId: user.open_id as string,
+    profileDeepLink: optionalString(user.profile_deep_link),
+    username: optionalString(user.username),
+    videoCount: optionalNumber(user.video_count),
+  };
+}
+
+function optionalBoolean(value: unknown) {
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function optionalNumber(value: unknown) {
+  return typeof value === "number" ? value : undefined;
+}
+
+function optionalString(value: unknown) {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }

@@ -5,9 +5,14 @@ import { type NextRequest, NextResponse } from "next/server";
 
 import {
   exchangeTikTokAuthorizationCode,
+  fetchTikTokUserProfile,
   getTikTokOAuthConfig,
   shouldUseSecureCookie,
+  TIKTOK_CODE_VERIFIER_COOKIE,
   TIKTOK_CONNECTED_COOKIE,
+  TIKTOK_CONNECTED_EXPIRES_AT_COOKIE,
+  TIKTOK_CONNECTED_PROFILE_COOKIE,
+  TIKTOK_CONNECTED_SCOPES_COOKIE,
   TIKTOK_OAUTH_STATE_COOKIE,
 } from "@/lib/tiktok-oauth";
 
@@ -58,8 +63,13 @@ export async function GET(request: NextRequest) {
 
   const cookieStore = await cookies();
   const expectedState = cookieStore.get(TIKTOK_OAUTH_STATE_COOKIE)?.value;
+  const codeVerifier = cookieStore.get(TIKTOK_CODE_VERIFIER_COOKIE)?.value;
 
   cookieStore.set(TIKTOK_OAUTH_STATE_COOKIE, "", {
+    maxAge: 0,
+    path: "/",
+  });
+  cookieStore.set(TIKTOK_CODE_VERIFIER_COOKIE, "", {
     maxAge: 0,
     path: "/",
   });
@@ -75,8 +85,20 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (!codeVerifier) {
+    return htmlResponse({
+      status: 400,
+      title: "TikTok OAuth verifier is missing",
+      body: [
+        "The callback could not find the original PKCE verifier for this login request.",
+        "Start the TikTok connection again from the app.",
+      ],
+    });
+  }
+
   const tokenResult = await exchangeTikTokAuthorizationCode({
     code,
+    codeVerifier,
     config: configResult.config,
   });
 
@@ -92,21 +114,96 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const grantedScope = grantedScopes ?? tokenResult.token.scope;
+  const missingRequiredScopes = getMissingConnectedAccountScopes(grantedScope);
+
+  if (missingRequiredScopes.length > 0) {
+    return htmlResponse({
+      status: 400,
+      title: "TikTok scopes are missing",
+      body: [
+        "TikTok Login Kit succeeded, but TikTok did not grant all scopes required to show the connected account card correctly.",
+        `Missing scopes: ${missingRequiredScopes.join(", ")}`,
+        "Enable these scopes in the TikTok Developer Portal Sandbox Login Kit settings, then reconnect TikTok.",
+      ],
+    });
+  }
+
+  const profileResult = await fetchTikTokUserProfile({
+    accessToken: tokenResult.token.access_token,
+    scope: grantedScope,
+  });
+
+  if (!profileResult.ok) {
+    return htmlResponse({
+      status: 502,
+      title: "TikTok profile fetch failed",
+      body: [
+        `TikTok response status: ${profileResult.failure.status}`,
+        `Error: ${profileResult.failure.error}`,
+        profileResult.failure.errorDescription,
+        "Login Kit token exchange succeeded, but the app could not read basic account information for the connected account.",
+      ],
+    });
+  }
+
+  const connectedMaxAge = Math.min(
+    tokenResult.token.expires_in,
+    CONNECTED_MAX_AGE_SECONDS
+  );
+  const secureCookie = shouldUseSecureCookie(configResult.config.redirectUri);
+
   cookieStore.set(TIKTOK_CONNECTED_COOKIE, "1", {
     httpOnly: true,
-    maxAge: Math.min(tokenResult.token.expires_in, CONNECTED_MAX_AGE_SECONDS),
+    maxAge: connectedMaxAge,
     path: "/",
     sameSite: "lax",
-    secure: shouldUseSecureCookie(configResult.config.redirectUri),
+    secure: secureCookie,
   });
+  cookieStore.set(
+    TIKTOK_CONNECTED_SCOPES_COOKIE,
+    grantedScope,
+    {
+      httpOnly: true,
+      maxAge: connectedMaxAge,
+      path: "/",
+      sameSite: "lax",
+      secure: secureCookie,
+    }
+  );
+  cookieStore.set(
+    TIKTOK_CONNECTED_PROFILE_COOKIE,
+    JSON.stringify(profileResult.profile),
+    {
+      httpOnly: true,
+      maxAge: connectedMaxAge,
+      path: "/",
+      sameSite: "lax",
+      secure: secureCookie,
+    }
+  );
+  cookieStore.set(
+    TIKTOK_CONNECTED_EXPIRES_AT_COOKIE,
+    new Date(Date.now() + connectedMaxAge * 1000).toISOString(),
+    {
+      httpOnly: true,
+      maxAge: connectedMaxAge,
+      path: "/",
+      sameSite: "lax",
+      secure: secureCookie,
+    }
+  );
 
   return htmlResponse({
     status: 200,
     title: "TikTok Sandbox login connected",
     body: [
       "TikTok Login Kit authorization completed and the server exchanged the code successfully.",
+      `Connected account: ${
+        profileResult.profile.displayName ?? profileResult.profile.openId
+      }`,
       "Access and refresh token values were not printed, exposed to the browser, or persisted in this task.",
-      `Granted scopes: ${grantedScopes ?? tokenResult.token.scope}`,
+      `Granted scopes: ${grantedScope}`,
       "Next task: securely persist tokens, then sync the first page of TikTok videos.",
     ],
     actionHref: "/videos",
@@ -119,6 +216,23 @@ function statesMatch(expectedState: string, returnedState: string) {
   const returned = Buffer.from(returnedState);
 
   return expected.length === returned.length && timingSafeEqual(expected, returned);
+}
+
+function getMissingConnectedAccountScopes(scope: string) {
+  const grantedScopes = new Set(
+    scope
+      .split(/[,\s]+/)
+      .map((value) => value.trim())
+      .filter(Boolean)
+  );
+  const requiredScopes = [
+    "user.info.basic",
+    "user.info.profile",
+    "user.info.stats",
+    "video.list",
+  ];
+
+  return requiredScopes.filter((requiredScope) => !grantedScopes.has(requiredScope));
 }
 
 function htmlResponse({

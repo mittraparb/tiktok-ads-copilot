@@ -1,0 +1,7 @@
+version: "3"
+agent:
+  authtoken: "<paste-ngrok-authtoken-here>"
+tunnels:
+  tiktok-ads-copilot:
+    proto: http
+    addr: 3000
