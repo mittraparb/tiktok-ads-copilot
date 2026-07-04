@@ -703,7 +703,7 @@ Last updated:
 
 ID: TAD-046
 Type: Task
-Status: Blocked
+Status: Done
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -739,18 +739,35 @@ Expected files:
 - `docs/project-status.md`
 Notes:
 - Created after TAD-045 to keep token persistence separate from the first Login Kit proof.
+- Started on 2026-07-04 after user selected TAD-046 for today's work.
+- Implemented server-only AES-256-GCM token encryption using `TOKEN_ENCRYPTION_KEY`.
+- Implemented TikTok OAuth token persistence through Prisma upserts for `User`, `TikTokAccount`, and `TikTokToken`.
+- The OAuth callback now persists encrypted access and refresh token values before setting the connected-account cookies.
+- Token expiry and refresh-token expiry are stored from TikTok `expires_in` and `refresh_expires_in`.
+- Token values are not logged, rendered, stored in cookies, or exposed to client components.
+- Runtime persistence was verified on 2026-07-04 after Neon `DATABASE_URL` and `TOKEN_ENCRYPTION_KEY` were added locally outside the repository.
+- `pnpm exec prisma db push` synced the Prisma schema to Neon on 2026-07-04.
+- Safe Neon verification found one `User`, one `TikTokAccount`, and one `TikTokToken`; encrypted access and refresh token values start with `v1:` and expiry/scope metadata is present.
 Files changed:
-- None yet.
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/lib/tiktok-oauth.ts`
+- `apps/web/src/lib/tiktok-token-store.ts`
+- `apps/web/src/lib/token-encryption.ts`
+- `docs/task-board.md`
+- `docs/project-status.md`
 Build/lint/test result:
-- Not run yet.
+- `pnpm lint` passed on 2026-07-04 using the bundled pnpm runtime.
+- `pnpm build` initially hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-04 when rerun outside the sandbox.
+- `pnpm exec prisma db push` passed on 2026-07-04 against Neon Postgres.
+- Safe Prisma DB verification passed on 2026-07-04 without printing token values.
 Last updated:
-- 2026-07-02
+- 2026-07-04
 
 ### TAD-047
 
 ID: TAD-047
 Type: Task
-Status: Backlog
+Status: Ready
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -782,9 +799,10 @@ Expected files:
 - `docs/project-status.md`
 Notes:
 - Created after TAD-045 to keep real video retrieval separate from OAuth login.
+- Moved to Ready on 2026-07-04 after TAD-046 token persistence was verified in Neon.
 Files changed:
 - None yet.
 Build/lint/test result:
 - Not run yet.
 Last updated:
-- 2026-07-02
+- 2026-07-04

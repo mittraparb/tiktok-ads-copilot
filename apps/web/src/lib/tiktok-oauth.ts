@@ -50,6 +50,7 @@ export type TikTokUserProfile = {
   likesCount?: number;
   openId: string;
   profileDeepLink?: string;
+  unionId?: string;
   username?: string;
   videoCount?: number;
 };
@@ -231,7 +232,7 @@ function getUserInfoFields(scope: string) {
       .map((value) => value.trim())
       .filter(Boolean)
   );
-  const fields = ["open_id", "avatar_url", "display_name"];
+  const fields = ["open_id", "union_id", "avatar_url", "display_name"];
 
   if (grantedScopes.has("user.info.profile")) {
     fields.push("username", "profile_deep_link", "is_verified");
@@ -333,6 +334,7 @@ function mapTikTokUserProfile(user: Record<string, unknown>): TikTokUserProfile 
     likesCount: optionalNumber(user.likes_count),
     openId: user.open_id as string,
     profileDeepLink: optionalString(user.profile_deep_link),
+    unionId: optionalString(user.union_id),
     username: optionalString(user.username),
     videoCount: optionalNumber(user.video_count),
   };

@@ -15,6 +15,7 @@ import {
   TIKTOK_CONNECTED_SCOPES_COOKIE,
   TIKTOK_OAUTH_STATE_COOKIE,
 } from "@/lib/tiktok-oauth";
+import { persistTikTokOAuthSession } from "@/lib/tiktok-token-store";
 
 const CONNECTED_MAX_AGE_SECONDS = 60 * 60;
 
@@ -147,6 +148,24 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const persistenceResult = await persistTikTokOAuthSession({
+    grantedScope,
+    profile: profileResult.profile,
+    token: tokenResult.token,
+  });
+
+  if (!persistenceResult.ok) {
+    return htmlResponse({
+      status: 500,
+      title: "TikTok token persistence is not ready",
+      body: [
+        "TikTok Login Kit authorization completed, but the app could not securely persist the token values yet.",
+        ...persistenceResult.issues,
+        "No token values were printed or exposed to the browser.",
+      ],
+    });
+  }
+
   const connectedMaxAge = Math.min(
     tokenResult.token.expires_in,
     CONNECTED_MAX_AGE_SECONDS
@@ -202,9 +221,12 @@ export async function GET(request: NextRequest) {
       `Connected account: ${
         profileResult.profile.displayName ?? profileResult.profile.openId
       }`,
-      "Access and refresh token values were not printed, exposed to the browser, or persisted in this task.",
+      "Token metadata was persisted for the connected TikTok account.",
+      `Access token expires at ${persistenceResult.expiresAt.toISOString()}.`,
+      `Refresh token expires at ${persistenceResult.refreshExpiresAt.toISOString()}.`,
+      "Access and refresh token values were encrypted before storage and were not printed or exposed to the browser.",
       `Granted scopes: ${grantedScope}`,
-      "Next task: securely persist tokens, then sync the first page of TikTok videos.",
+      "Next task: sync the first page of TikTok videos.",
     ],
     actionHref: "/videos",
     actionLabel: "Open Video Library",
