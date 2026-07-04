@@ -767,7 +767,7 @@ Last updated:
 
 ID: TAD-047
 Type: Task
-Status: Ready
+Status: Done
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -800,6 +800,64 @@ Expected files:
 Notes:
 - Created after TAD-045 to keep real video retrieval separate from OAuth login.
 - Moved to Ready on 2026-07-04 after TAD-046 token persistence was verified in Neon.
+- Started on 2026-07-04 after user selected TAD-047.
+- Implemented official TikTok Display API `/v2/video/list/` first-page sync with `max_count = 20`.
+- The sync route decrypts the persisted access token server-side only, fetches the first page, and never returns or logs access/refresh token values.
+- Synced TikTok Display API fields: `id`, `create_time`, `cover_image_url`, `share_url`, `video_description`, `duration`, `title`, `like_count`, `comment_count`, `share_count`, and `view_count`.
+- Upserts synced rows into `TikTokVideo` and updates `TikTokAccount.lastSyncedAt`.
+- Runtime sync verification on 2026-07-04 returned 3 videos, `hasMore=false`, and stored 3 `TikTokVideo` rows in Neon.
+Files changed:
+- `apps/web/src/app/api/tiktok/sync-videos/route.ts`
+- `apps/web/src/lib/tiktok-display-api.ts`
+- `docs/task-board.md`
+- `docs/project-status.md`
+Build/lint/test result:
+- `pnpm lint` passed on 2026-07-04 using the bundled pnpm runtime.
+- `pnpm build` passed on 2026-07-04 when run outside the sandbox for the known Turbopack worker port issue.
+- Runtime `POST /api/tiktok/sync-videos` passed on 2026-07-04 with `syncedCount=3`, `skippedCount=0`, and `hasMore=false`.
+- Safe Prisma DB verification passed on 2026-07-04 with one synced account and three stored video rows.
+Last updated:
+- 2026-07-04
+
+### TAD-048
+
+ID: TAD-048
+Type: Task
+Status: Ready
+Priority: P0 critical
+Epic: TikTok Authentication
+Story: Authenticate with TikTok and test
+Title: Wire synced TikTok videos into Video Library
+Goal: Let the app read synced TikTokVideo rows from Neon so the Video Library can move from mock rows toward real Display API rows.
+Scope:
+- Add `GET /api/videos` or an equivalent server-side data reader using existing planned API direction.
+- Read TikTokVideo rows for the connected account.
+- Return or render Display API-shaped rows without exposing tokens.
+- Keep the existing mock UI fallback when no synced rows exist.
+- Preserve deterministic Pre-Boost scoring based only on supported Display API fields.
+Out of scope:
+- Fetching another Display API page.
+- Auto-looping through all pages.
+- Token refresh.
+- Paid CSV analysis.
+- TikTok Business API.
+- Scraping or browser automation.
+Acceptance criteria:
+- `/videos` can display synced rows or safely fall back to mock rows.
+- No access token or refresh token reaches client components.
+- Synced row shape remains compatible with `TikTokDisplayVideo`.
+- Mock fallback remains available for demo safety.
+Dependencies:
+- TAD-047.
+Expected files:
+- `apps/web/src/app/api/videos/route.ts`
+- `apps/web/src/app/videos/page.tsx`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/lib/pre-boost.ts`
+- `docs/task-board.md`
+- `docs/project-status.md`
+Notes:
+- Created on 2026-07-04 after TAD-047 synced 3 public videos into Neon.
 Files changed:
 - None yet.
 Build/lint/test result:

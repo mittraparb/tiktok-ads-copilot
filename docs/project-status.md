@@ -6,7 +6,7 @@ Current phase:
 - Phase 1: Mock Product UI
 
 Current goal:
-- TAD-046 token persistence is Done. The OAuth callback encrypts TikTok access/refresh token values server-side and persists token metadata through Prisma before setting connected-account cookies. Neon runtime verification passed on 2026-07-04 without printing token values. The next task is TAD-047 first-page TikTok video sync.
+- TAD-047 first-page TikTok video sync is Done. The app can decrypt the persisted TikTok access token server-side, call the official TikTok Display API `/v2/video/list/` endpoint with `max_count = 20`, upsert returned public video rows into Neon, and return safe sync metadata without exposing access or refresh token values.
 
 Current stack:
 - Next.js App Router
@@ -43,9 +43,10 @@ Current product direction:
   - `apps/web/src/app/privacy/page.tsx` exists.
   - `apps/web/src/app/api/tiktok/connect/route.ts` exists.
   - `apps/web/src/app/api/tiktok/callback/route.ts` exists.
+  - `apps/web/src/app/api/tiktok/sync-videos/route.ts` exists.
   - `/videos/[id]` is missing.
   - `/reports/preview` is missing and is now treated as a later Phase 1B task, not required before TikTok API planning.
-  - TikTok OAuth API routes exist for Sandbox login testing, but video sync routes do not exist yet.
+  - TikTok OAuth API routes and first-page Display API video sync route exist for Sandbox testing.
 - Existing components: Partial
   - Dashboard components exist: `app-shell.tsx`, `recommendation-badge.tsx`, `spend-views-chart.tsx`.
   - shadcn/ui-style primitives exist for badge, button, card, dialog, dropdown menu, input, progress, select, separator, table, tabs, and textarea.
@@ -66,7 +67,8 @@ Current product direction:
   - TAD-044 Vercel deployment and TikTok Sandbox readiness is Done.
   - TAD-045 Sandbox-only OAuth connect/callback is Done after successful Sandbox login, real connected profile card update, PKCE fix, and ngrok redirect alignment.
   - TAD-046 token persistence is Done after Neon runtime verification.
-  - TAD-047 first-page TikTok video sync is Ready and depends on persisted tokens from TAD-046.
+  - TAD-047 first-page TikTok video sync is Done after syncing 3 public videos into Neon.
+  - TAD-048 synced videos in Video Library is Ready.
   - TAD-050 Prisma schema review is Done after repository inspection.
 - Existing docs: Partial
   - `AGENTS.md` exists.
@@ -122,6 +124,7 @@ Current product direction:
 | 2026-07-02 | Phase 4: Real TikTok OAuth + Video Sync | TAD-044 prepared Vercel deployment and TikTok Sandbox readiness documentation without exposing secrets. | `docs/vercel-deployment-checklist.md`, `docs/vercel-vs-ngrok.md`, `docs/tiktok-sandbox-readiness.md`, `apps/web/src/app/terms/page.tsx`, `apps/web/src/app/privacy/page.tsx`, `docs/task-board.md`, `docs/project-status.md` | Documentation/compliance-copy task. Vercel Hobby/free settings and TikTok URL formats are documented; ngrok is documented as temporary local debugging only. No OAuth code, TikTok API calls, API routes, Prisma schema changes, migrations, or real secret values were added. `pnpm lint` and `pnpm build` passed on 2026-07-02. |
 | 2026-07-02 | Phase 4: Real TikTok OAuth + Video Sync | TAD-045 implemented TikTok Sandbox OAuth connect and callback routes. | `apps/web/src/app/api/tiktok/connect/route.ts`, `apps/web/src/app/api/tiktok/callback/route.ts`, `apps/web/src/lib/tiktok-oauth.ts`, `apps/web/src/app/page.tsx`, `apps/web/src/app/videos/page.tsx`, `docs/task-board.md`, `docs/project-status.md` | Needs manual Sandbox login review by the user. Code adds CSRF state and PKCE cookies, redirects to TikTok Login Kit with `code_challenge`, validates state on callback, exchanges code server-side with `code_verifier`, and does not print or persist access/refresh token values. Token persistence and video sync are separate follow-up tasks. |
 | 2026-07-04 | Phase 4: Real TikTok OAuth + Video Sync | TAD-046 implemented and verified secure TikTok OAuth token persistence. | `apps/web/src/app/api/tiktok/callback/route.ts`, `apps/web/src/lib/tiktok-oauth.ts`, `apps/web/src/lib/tiktok-token-store.ts`, `apps/web/src/lib/token-encryption.ts`, `docs/task-board.md`, `docs/project-status.md` | Adds server-only AES-256-GCM token encryption, Prisma upserts for `User`, `TikTokAccount`, and `TikTokToken`, token expiry metadata storage, and safe callback failure when database/encryption config is missing. `pnpm exec prisma db push` synced the schema to Neon, and safe DB verification found one user, one TikTok account, and one encrypted token row with expiry/scope metadata. |
+| 2026-07-04 | Phase 4: Real TikTok OAuth + Video Sync | TAD-047 implemented and verified first-page TikTok Display API video sync. | `apps/web/src/app/api/tiktok/sync-videos/route.ts`, `apps/web/src/lib/tiktok-display-api.ts`, `docs/task-board.md`, `docs/project-status.md` | Adds official Display API `/v2/video/list/` first-page sync with `max_count = 20`, server-only token decryption, `TikTokVideo` upserts, `TikTokAccount.lastSyncedAt` update, and safe sync metadata response. Runtime sync returned 3 videos, `hasMore=false`, and stored 3 rows in Neon without exposing token values. |
 
 ## 4. Current In-Progress Work
 
@@ -136,7 +139,8 @@ Current product direction:
 | Phase 3 | Database Foundation draft | Reviewed draft | Prisma schema exists for `User`, `TikTokAccount`, `TikTokToken`, `TikTokVideo`, and `PreBoostScore`; TAD-050 reviewed it. | Add migrations and later models only when database work is explicitly requested. | Codex |
 | Phase 4 | TAD-044 Vercel deployment and TikTok Sandbox readiness | Done | Public `/`, `/terms`, and `/privacy` were verified; Vercel deployment settings, TikTok URL formats, Sandbox credential guidance, env variable names, `.env.example`, and `.gitignore` protections are documented. | Deploy to Vercel manually, then configure TikTok Developer Portal URLs from the deployed Vercel domain. Put real values only in `apps/web/.env.local` or Vercel Environment Variables outside the repository. | Codex |
 | Phase 4 | TAD-045 TikTok OAuth connect/callback | Done | `/api/tiktok/connect`, `/api/tiktok/callback`, server-side OAuth helper, visible Connect with TikTok links, PKCE handling, ngrok redirect alignment, TikTok `/v2/user/info/` profile fetch, and `/videos` connected account profile/stat card are implemented; lint/build passed after the real profile card update. | Token persistence and video sync stay out of scope until TAD-046/TAD-047. | Codex |
-| Phase 4 | TAD-046 TikTok OAuth token persistence | Done | Server-only token encryption helper and Prisma token persistence helper are implemented; callback persists encrypted access/refresh tokens and expiry metadata before marking the account connected. Lint/build passed on 2026-07-04. Neon schema push and safe DB verification also passed on 2026-07-04. | Start TAD-047 first-page TikTok Display API video sync. | Codex |
+| Phase 4 | TAD-046 TikTok OAuth token persistence | Done | Server-only token encryption helper and Prisma token persistence helper are implemented; callback persists encrypted access/refresh tokens and expiry metadata before marking the account connected. Lint/build passed on 2026-07-04. Neon schema push and safe DB verification also passed on 2026-07-04. | Next UI data task: TAD-048. | Codex |
+| Phase 4 | TAD-047 first-page TikTok video sync | Done | `/api/tiktok/sync-videos` uses the persisted encrypted token server-side, fetches only the first Display API page with `max_count = 20`, upserts 3 TikTokVideo rows, and updates `lastSyncedAt`; lint/build/runtime sync passed on 2026-07-04. | Next UI data task: TAD-048. | Codex |
 
 ## 5. Pending Work / Backlog
 
@@ -218,7 +222,8 @@ Notes:
 - TAD-044 Vercel deployment and Sandbox readiness is Done.
 - TAD-045 is Done for Sandbox-only OAuth connect/callback after successful Sandbox login and connected account card update.
 - TAD-046 is Done after implementation and Neon runtime verification.
-- TAD-047 is Ready and will sync the first page of TikTok videos using persisted encrypted tokens.
+- TAD-047 is Done after syncing the first page of public TikTok videos into Neon.
+- TAD-048 is Ready to let `/videos` read synced rows instead of only mock rows.
 - Use Vercel as the stable public URL for TikTok Developer Portal setup:
   - Web/Desktop URL: `https://your-vercel-domain`
   - Terms URL: `https://your-vercel-domain/terms`
@@ -283,13 +288,14 @@ Notes:
 - Local dev server for TAD-045 was restarted successfully on port 3000 after clearing the old stuck process.
 - Task-board finding: TAD-050 was referenced by the user but did not exist on the board before this reconciliation; it has now been added and marked Done with schema-review notes.
 - TAD-046 runtime verification passed against Neon Postgres on 2026-07-04 after local server-side env values were added outside the repository. No token values were printed during verification.
+- TAD-047 runtime sync passed against TikTok Display API and Neon Postgres on 2026-07-04. The connected Sandbox account returned 3 public videos and no additional page.
 
 ## 8. Risks / Open Questions
 
 | Risk / Question | Impact | Current thinking | Next step |
 |---|---|---|---|
 | TikTok Developer app approval requirements | Could block real OAuth/video access in Phase 4. | Plan around official Login Kit and Display API scopes only. | Confirm requirements before Phase 4 implementation. |
-| TikTok Display API scope approval | `video.list` may require review or setup before testing. | OAuth connect/callback is implemented, but real video sync is separated into TAD-047. | Confirm `video.list` is enabled before starting TAD-047. |
+| TikTok Display API scope approval | `video.list` may require review or setup before testing. | TAD-047 confirmed first-page video list access for the current Sandbox account. | Keep `video.list` enabled for future reconnects and deployed testing. |
 | TikTok user profile/stat scope approval | Without `user.info.profile` and `user.info.stats`, the connected account card cannot show username, total videos, follower count, following count, or likes. | The app requests these scopes and gracefully falls back when they are not granted. | Enable/approve `user.info.profile` and `user.info.stats` in Sandbox, then reconnect TikTok. |
 | Token encryption approach | Weak encryption could create security risk for stored tokens. | TAD-046 now uses server-only AES-256-GCM authenticated encryption with `TOKEN_ENCRYPTION_KEY`, verified against Neon without printing token values. | Keep `TOKEN_ENCRYPTION_KEY` only in local/Vercel env and out of git/docs/chat. |
 | Sandbox credentials readiness | Missing Sandbox credentials or redirect URI mismatch would block OAuth testing. | TAD-045 is implemented, but manual login review depends on correct Sandbox credentials, tester setup, scopes, and redirect URI. | Run the TikTok Sandbox login flow from `/api/tiktok/connect`; if testing on Vercel, add env values in Vercel and redeploy first. |
@@ -302,10 +308,10 @@ Notes:
 ## 9. Next Recommended Action
 
 Next action:
-- Start TAD-047, `Sync first page of TikTok videos from Display API`.
+- Start TAD-048, `Wire synced TikTok videos into Video Library`.
 
 Why:
-- TAD-046 has persisted encrypted TikTok tokens in Neon. The next useful product step is to use the persisted token server-side to fetch the connected user's first page of public videos through the official TikTok Display API.
+- TAD-047 has real Display API rows in Neon, but the Video Library UI still renders mock rows. TAD-048 is the narrow next step that lets the product surface synced rows while preserving the existing mock fallback.
 
 ## 10. Mandatory Task Board Workflow
 
