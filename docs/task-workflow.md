@@ -83,6 +83,15 @@ After completing a task:
 8. Set the next recommended action.
 9. Summarize the task ID, result, files changed, and next task.
 
+## Local Acceptance Testing
+
+- For plain UI checks that do not depend on TikTok OAuth cookies, `http://localhost:3000` is acceptable.
+- For TikTok OAuth, connected-account state, synced video library, or any feature that depends on the connected TikTok cookies, test through the same public origin used for OAuth callback setup.
+- In local development, that usually means the active ngrok HTTPS URL, for example `https://current-ngrok-domain/videos`, not `http://localhost:3000/videos`.
+- Reason: browser cookies are scoped by host. A TikTok login completed on an ngrok domain will not make the same connected cookies available on `localhost`, so localhost may correctly fall back to mock data.
+- Do not mark OAuth/session-dependent tasks as `Done` until the user confirms acceptance on the correct public test URL.
+- Do not commit `.env.local` or `.ngrok/ngrok.yml`; update only docs and safe source files.
+
 ## End-of-Day Closeout
 
 When the user says the work is done for today:

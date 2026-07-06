@@ -823,7 +823,7 @@ Last updated:
 
 ID: TAD-048
 Type: Task
-Status: Ready
+Status: Done
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -858,9 +858,25 @@ Expected files:
 - `docs/project-status.md`
 Notes:
 - Created on 2026-07-04 after TAD-047 synced 3 public videos into Neon.
+- Implemented on 2026-07-06. `/videos` now reads synced TikTokVideo rows for the connected account and falls back to mock Display API-shaped rows when no synced rows exist.
+- `GET /api/videos` returns safe Display API-shaped video rows and non-sensitive account metadata only. It does not return access tokens, refresh tokens, encrypted token values, or account identifiers.
+- User acceptance passed on 2026-07-06 after testing through the ngrok HTTPS origin.
+- Acceptance testing for synced rows should use the active ngrok HTTPS origin, not localhost, because TikTok connected cookies are scoped to the OAuth callback host.
+- Synced rows had `cover_image_url` values from a fresh TikTok API sync, but some TikTok CDN covers may fail, block, expire, or hang in the browser. The Video Library now falls back to a designed cover state when a synced cover image is missing, fails to load, or does not load within 2.5 seconds.
 Files changed:
-- None yet.
+- `apps/web/src/app/api/videos/route.ts`
+- `apps/web/src/app/videos/page.tsx`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/lib/tiktok-videos.ts`
+- `apps/web/src/lib/pre-boost.ts`
+- `docs/task-board.md`
+- `docs/project-status.md`
 Build/lint/test result:
-- Not run yet.
+- `pnpm lint` passed on 2026-07-06.
+- `pnpm build` passed on 2026-07-06 after rerunning outside the sandbox for the known Turbopack worker port issue.
+- Safe Prisma/Neon shape check passed on 2026-07-06 with `source=synced`, `count=3`, and `firstHasDisplayApiShape=true`.
+- Safe cover URL check passed on 2026-07-06 with 3 of 3 synced rows having `cover_image_url`; browser rendering still depends on TikTok CDN availability, so UI fallback is required.
+- Fresh TikTok sync check passed on 2026-07-06 with 3 of 3 API-returned rows having `cover_image_url`; client cover fallback timeout added and `pnpm lint` / `pnpm build` passed again after the change.
+- User confirmed TAD-048 passed on 2026-07-06.
 Last updated:
-- 2026-07-04
+- 2026-07-06

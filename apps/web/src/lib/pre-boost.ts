@@ -41,7 +41,7 @@ export type PreBoostAnalysis = {
   suggestedBudget: 100 | 300 | 500;
   reasons: string[];
   risks: string[];
-  formulaVersion: "preboost-v1-display-api-mock";
+  formulaVersion: "preboost-v1-display-api";
 };
 
 const now = new Date("2026-07-02T09:00:00+07:00");
@@ -202,6 +202,6 @@ export function analyzePreBoostVideo(
     suggestedBudget,
     reasons,
     risks,
-    formulaVersion: "preboost-v1-display-api-mock",
+    formulaVersion: "preboost-v1-display-api",
   };
 }

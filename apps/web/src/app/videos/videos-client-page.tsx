@@ -13,7 +13,7 @@ import {
   Video,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppShell } from "@/components/dashboard/app-shell";
 import {
@@ -29,7 +29,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   connectedTikTokAccount,
   monthlyBenchmark,
-  tiktokDisplayVideos,
 } from "@/lib/mock-data";
 import {
   analyzePreBoostVideo,
@@ -101,8 +100,14 @@ const dateFormatter = new Intl.DateTimeFormat("en", {
 
 export function VideosClientPage({
   connectionStatus,
+  lastSyncedAt,
+  librarySource,
+  videos,
 }: {
   connectionStatus: TikTokConnectionStatus;
+  lastSyncedAt?: string;
+  librarySource: "mock" | "synced";
+  videos: TikTokDisplayVideo[];
 }) {
   const [search, setSearch] = useState("");
   const [recommendation, setRecommendation] = useState<
@@ -112,11 +117,11 @@ export function VideosClientPage({
 
   const analyzedVideos = useMemo<VideoRow[]>(
     () =>
-      tiktokDisplayVideos.map((video) => ({
+      videos.map((video) => ({
         video,
         analysis: analyzePreBoostVideo(video, monthlyBenchmark),
       })),
-    []
+    [videos]
   );
 
   const filteredVideos = useMemo(() => {
@@ -188,14 +193,22 @@ export function VideosClientPage({
     ? `@${connectionStatus.profile.username}`
     : "Login Kit account";
   const needsReconnect = Boolean(connectionStatus.needsReconnect);
+  const isSyncedLibrary = librarySource === "synced";
 
   return (
     <AppShell>
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="max-w-3xl">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-zinc-500">
-            <span className="h-2 w-2 rounded-full bg-cyan-500" />
-            Pre-Boost Analyzer mock library
+            <span
+              className={cn(
+                "h-2 w-2 rounded-full",
+                isSyncedLibrary ? "bg-emerald-500" : "bg-cyan-500"
+              )}
+            />
+            {isSyncedLibrary
+              ? "Pre-Boost Analyzer synced library"
+              : "Pre-Boost Analyzer mock fallback"}
           </div>
           <h1 className="text-3xl font-semibold text-zinc-950 sm:text-4xl">
             Video Library
@@ -245,15 +258,14 @@ export function VideosClientPage({
                 <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-500">
                   <span>
                     {connectionStatus.isConnected
-                      ? formatProfileCount(
-                          connectionStatus.profile?.videoCount,
-                          "videos"
-                        )
+                      ? `${analyzedVideos.length} library videos`
                       : `${connectedTikTokAccount.totalVideos} mock videos`}
                   </span>
                   <span>
-                    {connectionStatus.isConnected
-                      ? formatConnectionExpiry(connectionStatus.expiresAt)
+                    {isSyncedLibrary && lastSyncedAt
+                      ? formatSyncDate(lastSyncedAt)
+                      : connectionStatus.isConnected
+                        ? formatConnectionExpiry(connectionStatus.expiresAt)
                       : formatSyncDate(connectedTikTokAccount.lastSyncedAt)}
                   </span>
                 </div>
@@ -267,11 +279,13 @@ export function VideosClientPage({
                       : "border-dashed border-zinc-300 bg-zinc-50 text-zinc-600"
                   )}
                 >
-                  {connectionStatus.isConnected
+                  {isSyncedLibrary
+                    ? "Synced Display API rows from Neon"
+                    : connectionStatus.isConnected
                     ? getConnectedAccountSummary(connectionStatus)
                     : needsReconnect
                       ? "Reconnect required / previous login needs profile refresh"
-                    : "Mock data only / TikTok API not connected yet"}
+                    : "Mock fallback / TikTok API not connected yet"}
                 </div>
                 {connectionStatus.isConnected ? (
                   <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
@@ -315,7 +329,11 @@ export function VideosClientPage({
         <SummaryCard
           label="Total videos"
           value={analyzedVideos.length.toString()}
-          helper="Display API-shaped mock rows"
+          helper={
+            isSyncedLibrary
+              ? "Synced Display API rows"
+              : "Display API-shaped mock rows"
+          }
           icon={Video}
         />
         <SummaryCard
@@ -396,7 +414,7 @@ export function VideosClientPage({
           <CardHeader>
             <CardTitle>Filters and sorting</CardTitle>
             <CardDescription>
-              Client-side controls for the mock video library.
+              Client-side controls for the current video library.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -465,17 +483,23 @@ export function VideosClientPage({
           <div>
             <h2 className="text-lg font-semibold text-zinc-950">Videos</h2>
             <p className="text-sm text-zinc-500">
-              {filteredVideos.length} videos match the current view.
+              {filteredVideos.length} videos match the current view.{" "}
+              {isSyncedLibrary ? "Showing synced Neon rows." : "Using mock fallback."}
             </p>
           </div>
           <div className="text-xs font-medium text-zinc-500">
-            Formula: preboost-v1-display-api-mock
+            Formula: preboost-v1-display-api
           </div>
         </div>
 
         <div className="grid gap-3">
           {filteredVideos.map((item, index) => (
-            <VideoCard key={item.video.id} item={item} rank={index + 1} />
+            <VideoCard
+              key={item.video.id}
+              item={item}
+              rank={index + 1}
+              source={librarySource}
+            />
           ))}
         </div>
       </section>
@@ -539,7 +563,15 @@ function AccountStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function VideoCard({ item, rank }: { item: VideoRow; rank: number }) {
+function VideoCard({
+  item,
+  rank,
+  source,
+}: {
+  item: VideoRow;
+  rank: number;
+  source: "mock" | "synced";
+}) {
   const { video, analysis } = item;
   const trendText = getTrendText(analysis, rank);
 
@@ -547,17 +579,11 @@ function VideoCard({ item, rank }: { item: VideoRow; rank: number }) {
     <Card className="rounded-lg border-0 bg-white shadow-sm ring-zinc-200">
       <CardContent>
         <div className="grid gap-4 lg:grid-cols-[132px_minmax(0,1fr)_220px]">
-          <div className="aspect-[3/4] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100">
-            <div className="flex h-full flex-col justify-between bg-[linear-gradient(145deg,#111827,#155e75_48%,#f43f5e)] p-3 text-white">
-              <div className="text-xs font-semibold">Mock cover</div>
-              <div>
-                <Sparkles className="mb-2 size-4" aria-hidden="true" />
-                <div className="line-clamp-3 text-sm font-semibold leading-5">
-                  {video.title}
-                </div>
-              </div>
-            </div>
-          </div>
+          <VideoCover
+            key={`${source}-${video.cover_image_url}`}
+            video={video}
+            source={source}
+          />
 
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -593,8 +619,10 @@ function VideoCard({ item, rank }: { item: VideoRow; rank: number }) {
               <a
                 href={video.share_url}
                 className="font-medium text-cyan-700 hover:text-cyan-900"
+                rel="noreferrer"
+                target="_blank"
               >
-                Mock share URL
+                Open TikTok URL
               </a>
             </div>
 
@@ -650,13 +678,75 @@ function VideoCard({ item, rank }: { item: VideoRow; rank: number }) {
               </div>
               <div>
                 <span className="font-semibold text-zinc-800">Risk: </span>
-                {analysis.risks[0] ?? "No major risk from available mock signals."}
+                {analysis.risks[0] ?? "No major risk from available signals."}
               </div>
             </div>
           </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function VideoCover({
+  source,
+  video,
+}: {
+  source: "mock" | "synced";
+  video: TikTokDisplayVideo;
+}) {
+  const coverUrl = video.cover_image_url.trim();
+  const canTryCover = source === "synced" && coverUrl.length > 0;
+  const [imageFailed, setImageFailed] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!canTryCover || imageLoaded || imageFailed) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setImageFailed(true);
+    }, 2500);
+
+    return () => window.clearTimeout(timeout);
+  }, [canTryCover, imageFailed, imageLoaded]);
+
+  return (
+    <div className="relative aspect-[3/4] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100">
+      <div className="absolute inset-0 flex flex-col justify-between bg-[linear-gradient(145deg,#111827,#155e75_48%,#f43f5e)] p-3 text-white">
+        <div className="text-xs font-semibold">
+          {source === "synced" && canTryCover && !imageFailed
+            ? "Loading cover"
+            : source === "synced"
+              ? "Cover unavailable"
+              : "Mock cover"}
+        </div>
+        <div>
+          <Sparkles className="mb-2 size-4" aria-hidden="true" />
+          <div className="line-clamp-3 text-sm font-semibold leading-5">
+            {video.title}
+          </div>
+        </div>
+      </div>
+
+      {canTryCover && !imageFailed ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={coverUrl}
+          alt=""
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover transition-opacity duration-200",
+            imageLoaded ? "opacity-100" : "opacity-0"
+          )}
+          decoding="async"
+          loading="lazy"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageFailed(true)}
+          referrerPolicy="no-referrer"
+        />
+      ) : null}
+    </div>
   );
 }
 

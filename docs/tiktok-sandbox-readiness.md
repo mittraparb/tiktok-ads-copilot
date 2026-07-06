@@ -57,6 +57,7 @@ TOKEN_ENCRYPTION_KEY=<strong-random-secret>
 
 - Configure the redirect URI exactly. It must match `TIKTOK_REDIRECT_URI`.
 - For local-only debugging later, use an HTTPS tunnel URL only if TikTok must call back into localhost.
+- When testing connected-account UI or synced videos locally, use the same HTTPS tunnel origin in the browser. Do not validate OAuth-cookie-dependent behavior on `localhost` after logging in through ngrok, because the cookies are scoped to the ngrok host.
 - Enable Login Kit.
 - Prepare scopes:
   - `user.info.basic`

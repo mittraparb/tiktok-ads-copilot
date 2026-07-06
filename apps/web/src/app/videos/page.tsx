@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 
 import { VideosClientPage, type TikTokConnectionStatus } from "./videos-client-page";
+import { tiktokDisplayVideos } from "@/lib/mock-data";
+import { getSyncedTikTokVideoLibrary } from "@/lib/tiktok-videos";
 import {
   TIKTOK_CONNECTED_COOKIE,
   TIKTOK_CONNECTED_EXPIRES_AT_COOKIE,
@@ -20,6 +22,14 @@ export default async function VideosPage() {
     cookieStore.get(TIKTOK_CONNECTED_PROFILE_COOKIE)?.value
   );
   const hasCompleteConnection = isConnected && Boolean(profile);
+  const syncedLibrary = await getSyncedTikTokVideoLibrary(
+    hasCompleteConnection ? profile?.openId : undefined
+  );
+  const libraryVideos =
+    syncedLibrary.source === "synced" && syncedLibrary.videos.length > 0
+      ? syncedLibrary.videos
+      : tiktokDisplayVideos;
+  const librarySource = syncedLibrary.source === "synced" ? "synced" : "mock";
 
   const connectionStatus: TikTokConnectionStatus = {
     expiresAt: hasCompleteConnection ? expiresAt : undefined,
@@ -29,7 +39,14 @@ export default async function VideosPage() {
     scopes: hasCompleteConnection ? scopes : undefined,
   };
 
-  return <VideosClientPage connectionStatus={connectionStatus} />;
+  return (
+    <VideosClientPage
+      connectionStatus={connectionStatus}
+      librarySource={librarySource}
+      lastSyncedAt={syncedLibrary.account?.lastSyncedAt}
+      videos={libraryVideos}
+    />
+  );
 }
 
 function parseProfileCookie(value?: string): TikTokUserProfile | undefined {

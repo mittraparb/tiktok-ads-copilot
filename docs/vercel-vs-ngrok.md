@@ -37,3 +37,4 @@ https://current-ngrok-domain/api/tiktok/callback
 
 The same exact value must also be used for `TIKTOK_REDIRECT_URI` in the relevant local environment.
 
+When testing features that depend on TikTok OAuth cookies or connected-account state, open the app through the same ngrok origin used for OAuth. Do not switch to `localhost` for those checks. Cookies are host-scoped, so a session created on `https://current-ngrok-domain` will not be visible to `http://localhost:3000`, and the app may intentionally show mock fallback data there.
