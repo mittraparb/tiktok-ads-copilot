@@ -69,7 +69,8 @@ Current product direction:
   - TAD-045 Sandbox-only OAuth connect/callback is Done after successful Sandbox login, real connected profile card update, PKCE fix, and ngrok redirect alignment.
   - TAD-046 token persistence is Done after Neon runtime verification.
   - TAD-047 first-page TikTok video sync is Done after syncing 3 public videos into Neon.
-  - TAD-048 synced videos in Video Library is Needs Review.
+  - TAD-048 synced videos in Video Library is Done after ngrok user acceptance testing.
+  - TAD-051 saved/favourite count metric is Backlog / P0 critical because TikTok Display API does not provide per-video saves/favorites.
   - TAD-050 Prisma schema review is Done after repository inspection.
 - Existing docs: Partial
   - `AGENTS.md` exists.
@@ -294,6 +295,8 @@ Notes:
 - TAD-047 runtime sync passed against TikTok Display API and Neon Postgres on 2026-07-04. The connected Sandbox account returned 3 public videos and no additional page.
 - TAD-048 safe Neon shape check passed on 2026-07-06 with 3 synced rows mapped into `TikTokDisplayVideo` shape. No access or refresh token values were printed or returned.
 - TAD-048 user acceptance passed on 2026-07-06 through the ngrok HTTPS URL. A cover-rendering issue was found during review: TikTok returned `cover_image_url` values for all synced rows, but some TikTok CDN images failed or hung in the browser. The solution was a client-side designed cover fallback for missing, failed, or slow-loading covers.
+- TAD-051 was created as a P0 Backlog task for adding `Saved or Favourite` to the Video Library metric row. It stays in the backlog because TikTok Display API does not provide per-video saved/favourite counts, and the app must not scrape, infer, or fake this value. Move it to Ready/In Progress only if TikTok provides an official saved/favourite source or the product approves a clearly manual input path.
+- TAD-051 clarification: a month-to-date projection algorithm for saved/favourite is feasible once there is a raw saved/favourite input source. The projection should compare current month pace against previous month totals and must be labelled as an app calculation, not a TikTok-provided metric.
 
 ## 8. Risks / Open Questions
 

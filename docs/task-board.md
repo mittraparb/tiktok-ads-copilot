@@ -880,3 +880,80 @@ Build/lint/test result:
 - User confirmed TAD-048 passed on 2026-07-06.
 Last updated:
 - 2026-07-06
+
+### TAD-051
+
+ID: TAD-051
+Type: Bug
+Status: Backlog
+Priority: P0 critical
+Epic: TikTok Authentication
+Story: Authenticate with TikTok and test
+Title: Add saved/favourite count to Video Library metric row
+Goal: Change the Video Library metric row from `Views / Likes / Comments / Shares` to `Views / Likes / Comments / Saved or Favourite / Shares` and persist the saved/favourite count when an official TikTok API source is available.
+Scope:
+- Update the Video Library UI metric row to include `Saved or Favourite` between `Comments` and `Shares`.
+- Add a database field for saved/favourite count only when there is an official source for this value.
+- Map the official TikTok API saved/favourite count into the database and UI if TikTok exposes it in an approved API.
+- Keep scoring deterministic and do not make saved/favourite required for the core Pre-Boost formula unless an official API field exists.
+- Review and update all dependent surfaces if the field becomes officially available: mock data, `TikTokDisplayVideo` type, sync route, API route output, video row mapper, monthly benchmark card, engagement-rate calculation, score formula, reasons/risks copy, sort/filter controls, and documentation/compliance copy.
+Out of scope:
+- Scraping TikTok.
+- Browser automation.
+- Asking for TikTok cookies, sessions, copied tokens, or credentials.
+- Inferring saved/favourite counts from unofficial sources.
+- Showing fake saved/favourite numbers.
+Acceptance criteria:
+- The Video Library shows `Views`, `Likes`, `Comments`, `Saved or Favourite`, and `Shares` in that order.
+- The saved/favourite value is persisted in the database from an official TikTok API field.
+- The saved/favourite value shown in the UI matches the official TikTok API value.
+- If no official API field exists, the task remains Blocked and the UI must not claim a real saved/favourite number.
+Dependencies:
+- Official TikTok API support for per-video saved/favourite count.
+- Product decision if a manual saved/favourite input should be allowed as an alternative.
+Expected files:
+- `apps/web/prisma/schema.prisma`
+- `apps/web/src/app/api/tiktok/sync-videos/route.ts`
+- `apps/web/src/lib/tiktok-display-api.ts`
+- `apps/web/src/lib/tiktok-videos.ts`
+- `apps/web/src/lib/pre-boost.ts`
+- `apps/web/src/lib/mock-data.ts`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/app/terms/page.tsx`
+- `apps/web/src/app/privacy/page.tsx`
+- `docs/task-board.md`
+- `docs/project-status.md`
+Notes:
+- Created on 2026-07-06 after user requested `Saved or Favourite` in the Video Library metric row.
+- Moved to Backlog on 2026-07-06. Keep as P0 critical because it is a valuable missing signal, but do not implement until TikTok provides an official saved/favourite source or the product approves a clearly manual input path.
+- Backlog reason: TikTok Display API currently returns `id`, `create_time`, `cover_image_url`, `share_url`, `video_description`, `duration`, `title`, `like_count`, `comment_count`, `share_count`, and `view_count`, but not saves/favorites.
+- `AGENTS.md` explicitly states TikTok Display API does not provide saves/favorites and the core scoring formula must not require those fields.
+- Clarification from user on 2026-07-06: the product can calculate month-to-date projection itself. Example: previous month total saved = 100; current month saved = 10 on day 10; with 20 days left, estimate current month pace and compare projected month-end saved value against previous month. This projection algorithm is feasible, but it still requires a raw saved/favourite input source first.
+- Recommended algorithm once saved/favourite input exists:
+  - `elapsedDays = current day of month`
+  - `daysInMonth = number of days in current month`
+  - `remainingDays = daysInMonth - elapsedDays`
+  - `currentDailyPace = currentMonthSaved / elapsedDays`
+  - `projectedMonthSaved = currentDailyPace * daysInMonth`
+  - `projectionDelta = projectedMonthSaved - previousMonthSaved`
+  - `projectionDeltaPercent = previousMonthSaved > 0 ? projectionDelta / previousMonthSaved * 100 : null`
+  - Also normalize by current-month video count where useful: `savedPerVideo = currentMonthSaved / currentMonthVideoCount` and `projectedSavedPerVideo = projectedMonthSaved / currentMonthVideoCount`.
+- The UI copy must label this clearly as a projection, for example `Projected saved/favourite based on month-to-date pace`, not as a TikTok-provided value.
+- Impact review on 2026-07-06 found these specific surfaces would need changes if an official saved/favourite field exists:
+  - Raw Display API field allowlist in `apps/web/src/lib/tiktok-display-api.ts`.
+  - Prisma `TikTokVideo` model and migration/database push.
+  - Sync upsert payload and `POST /api/tiktok/sync-videos` safe response.
+  - `GET /api/videos` and `apps/web/src/lib/tiktok-videos.ts` row mapping.
+  - `TikTokDisplayVideo`, `MonthlyBenchmark`, and `PreBoostAnalysis` types.
+  - `analyzePreBoostVideo` metrics: engagement rate, saved/favourite rate, trend delta, scoring weights, reasons, and risks.
+  - `monthlyBenchmark` mock values and all mock TikTok video rows.
+  - `/videos` metric cards: first metric row, second rate row, monthly trend panel, sort options, and any "above trend" copy.
+  - Terms/Privacy/public copy listing TikTok Display API metrics.
+- Safe alternative later: create a separate task for optional manual saved/favourite input, clearly labelled as manual, not API-synced.
+Files changed:
+- `docs/task-board.md`
+- `docs/project-status.md`
+Build/lint/test result:
+- Not run; task status/docs update only.
+Last updated:
+- 2026-07-06
