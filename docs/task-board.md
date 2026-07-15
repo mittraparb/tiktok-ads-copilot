@@ -919,7 +919,7 @@ Last updated:
 
 ID: TAD-052
 Type: Bug
-Status: Needs Review
+Status: Done
 Priority: P0 critical
 Epic: TikTok Authentication
 Story: Authenticate with TikTok and test
@@ -967,6 +967,7 @@ Notes:
 - Callback now runs video sync immediately after token persistence when `video.list` is granted. Sync failure is non-fatal to login and is shown in the callback success page.
 - `POST /api/tiktok/sync-videos` now uses shared sync logic from `apps/web/src/lib/tiktok-video-sync.ts`.
 - The list cover component no longer uses a 2.5 second timeout to mark covers unavailable. It only falls back when the image fails to load.
+- User accepted TAD-052 on 2026-07-15 after confirming the refreshed synced-video fix.
 Files changed:
 - `AGENTS.md`
 - `docs/task-workflow.md`
@@ -983,6 +984,7 @@ Build/lint/test result:
 - Dev-server log showed successful callback on 2026-07-15: `/api/tiktok/callback` returned 200, then `/videos` returned 200.
 - `pnpm lint` passed on 2026-07-15.
 - `pnpm build` initially hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-15 when rerun outside the sandbox.
+- User acceptance passed on 2026-07-15.
 Last updated:
 - 2026-07-15
 
