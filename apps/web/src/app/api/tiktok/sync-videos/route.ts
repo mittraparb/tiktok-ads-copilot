@@ -2,14 +2,13 @@ import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
 import {
-  fetchTikTokVideoListFirstPage,
-  TIKTOK_VIDEO_LIST_MAX_COUNT,
-  type TikTokDisplayApiVideo,
-} from "@/lib/tiktok-display-api";
-import {
   decryptSecret,
   getTokenEncryptionConfig,
 } from "@/lib/token-encryption";
+import {
+  syncTikTokVideosForAccount,
+  toSafeTikTokVideoResponse,
+} from "@/lib/tiktok-video-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -75,55 +74,31 @@ export async function POST() {
     );
   }
 
-  const videoListResult = await fetchTikTokVideoListFirstPage({ accessToken });
+  const videoSyncResult = await syncTikTokVideosForAccount({
+    accessToken,
+    accountId: tokenResult.account.id,
+  });
 
-  if (!videoListResult.ok) {
+  if (!videoSyncResult.ok) {
     return NextResponse.json(
       {
-        error: videoListResult.failure.error,
-        message: videoListResult.failure.errorDescription,
-        status: videoListResult.failure.status,
+        error: videoSyncResult.failure.error,
+        message: videoSyncResult.failure.errorDescription,
+        status: videoSyncResult.failure.status,
       },
       { status: 502 }
     );
   }
 
-  const syncStartedAt = new Date();
-  const upsertedVideos = await upsertTikTokVideos({
-    accountId: tokenResult.account.id,
-    syncedAt: syncStartedAt,
-    videos: videoListResult.videos,
-  });
-
-  await prisma.tikTokAccount.update({
-    where: {
-      id: tokenResult.account.id,
-    },
-    data: {
-      lastSyncedAt: syncStartedAt,
-    },
-  });
-
   return NextResponse.json({
-    hasMore: videoListResult.hasMore,
-    maxCount: TIKTOK_VIDEO_LIST_MAX_COUNT,
-    nextCursor: videoListResult.cursor,
-    skippedCount: videoListResult.videos.length - upsertedVideos.length,
-    syncedAt: syncStartedAt.toISOString(),
-    syncedCount: upsertedVideos.length,
-    videos: upsertedVideos.map((video) => ({
-      id: video.tikTokVideoId,
-      comment_count: video.commentCount,
-      cover_image_url: video.coverImageUrl,
-      create_time: Math.floor(video.createTime.getTime() / 1000),
-      duration: video.duration,
-      like_count: video.likeCount,
-      share_count: video.shareCount,
-      share_url: video.shareUrl,
-      title: video.title,
-      video_description: video.videoDescription,
-      view_count: Number(video.viewCount),
-    })),
+    deletedStaleCount: videoSyncResult.deletedStaleCount,
+    hasMore: videoSyncResult.hasMore,
+    maxCount: videoSyncResult.maxCount,
+    nextCursor: videoSyncResult.cursor,
+    skippedCount: videoSyncResult.skippedCount,
+    syncedAt: videoSyncResult.syncedAt.toISOString(),
+    syncedCount: videoSyncResult.syncedCount,
+    videos: toSafeTikTokVideoResponse(videoSyncResult.videos),
   });
 }
 
@@ -168,56 +143,4 @@ async function getLatestPersistedTikTokToken(): Promise<
     account: token.tikTokAccount,
     token,
   };
-}
-
-async function upsertTikTokVideos({
-  accountId,
-  syncedAt,
-  videos,
-}: {
-  accountId: string;
-  syncedAt: Date;
-  videos: TikTokDisplayApiVideo[];
-}) {
-  const validVideos = videos.filter((video) => video.id && video.create_time);
-
-  return Promise.all(
-    validVideos.map((video) =>
-      prisma.tikTokVideo.upsert({
-        where: {
-          tikTokAccountId_tikTokVideoId: {
-            tikTokAccountId: accountId,
-            tikTokVideoId: video.id,
-          },
-        },
-        update: {
-          commentCount: video.comment_count ?? 0,
-          coverImageUrl: video.cover_image_url,
-          duration: video.duration,
-          lastSyncedAt: syncedAt,
-          likeCount: video.like_count ?? 0,
-          shareCount: video.share_count ?? 0,
-          shareUrl: video.share_url,
-          title: video.title,
-          videoDescription: video.video_description,
-          viewCount: BigInt(video.view_count ?? 0),
-        },
-        create: {
-          commentCount: video.comment_count ?? 0,
-          coverImageUrl: video.cover_image_url,
-          createTime: new Date(video.create_time * 1000),
-          duration: video.duration,
-          lastSyncedAt: syncedAt,
-          likeCount: video.like_count ?? 0,
-          shareCount: video.share_count ?? 0,
-          shareUrl: video.share_url,
-          tikTokAccountId: accountId,
-          tikTokVideoId: video.id,
-          title: video.title,
-          videoDescription: video.video_description,
-          viewCount: BigInt(video.view_count ?? 0),
-        },
-      })
-    )
-  );
 }

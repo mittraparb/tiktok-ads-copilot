@@ -45,12 +45,12 @@ export default function Home() {
               and prepare clearer performance reports.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link
+              <a
                 href="/api/tiktok/connect"
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-cyan-700 px-3 text-sm font-medium text-white transition-colors hover:bg-cyan-800"
               >
                 Connect with TikTok
-              </Link>
+              </a>
               <Link
                 href="/dashboard"
                 className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-950 px-3 text-sm font-medium text-white transition-colors hover:bg-zinc-800"

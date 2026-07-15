@@ -112,6 +112,7 @@ export function buildTikTokAuthorizationUrl(
   url.searchParams.set("client_key", config.clientKey);
   url.searchParams.set("code_challenge", codeChallenge);
   url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("disable_auto_auth", "1");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", TIKTOK_OAUTH_SCOPES.join(","));
   url.searchParams.set("redirect_uri", config.redirectUri);
@@ -124,7 +125,7 @@ export function generateTikTokPkcePair() {
   const codeVerifier = randomBytes(64).toString("base64url");
   const codeChallenge = createHash("sha256")
     .update(codeVerifier)
-    .digest("hex");
+    .digest("base64url");
 
   return { codeChallenge, codeVerifier };
 }

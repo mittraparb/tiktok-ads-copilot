@@ -6,7 +6,7 @@ Current phase:
 - Phase 1: Mock Product UI
 
 Current goal:
-- TAD-048 synced videos in Video Library is Done after user acceptance testing on the ngrok HTTPS origin. The `/videos` page can read Display API-shaped TikTokVideo rows from Neon for the connected account, render them through the existing Pre-Boost UI, and safely fall back to mock rows when no synced rows exist.
+- End-of-day closeout for 2026-07-15. TAD-011 is Done after user acceptance on ngrok. TAD-052 synced-video refresh after TikTok reconnect remains Needs Review pending user confirmation that `/videos` shows 5 synced videos and cover behavior is acceptable.
 
 Current stack:
 - Next.js App Router
@@ -45,7 +45,7 @@ Current product direction:
   - `apps/web/src/app/api/tiktok/callback/route.ts` exists.
   - `apps/web/src/app/api/tiktok/sync-videos/route.ts` exists.
   - `apps/web/src/app/api/videos/route.ts` exists.
-  - `/videos/[id]` is missing.
+  - `apps/web/src/app/videos/[id]/page.tsx` exists.
   - `/reports/preview` is missing and is now treated as a later Phase 1B task, not required before TikTok API planning.
   - TikTok OAuth API routes and first-page Display API video sync route exist for Sandbox testing.
 - Existing components: Partial
@@ -53,7 +53,8 @@ Current product direction:
   - shadcn/ui-style primitives exist for badge, button, card, dialog, dropdown menu, input, progress, select, separator, table, tabs, and textarea.
   - Video Library UI now exists in the `/videos` page.
   - Public landing, Terms, and Privacy pages now exist for TikTok developer compliance setup.
-  - Dedicated video detail, CSV upload, campaign table, and report preview components are missing.
+  - Dedicated video detail now exists.
+  - CSV upload, campaign table, and report preview components are missing.
 - Existing mock data files: Partial
   - `apps/web/src/lib/mock-data.ts` exists with mock campaigns, videos, daily performance, recommendations, dashboard metrics, and recommendation labels.
   - `apps/web/src/lib/mock-data.ts` now includes TikTok Display API-shaped mock videos using only approved Display API fields.
@@ -61,7 +62,7 @@ Current product direction:
   - Existing dashboard mock recommendations still use paid-style statuses: `BOOST`, `WAIT`, `PAUSE`, `FIX_CREATIVE`.
 - Existing task board status: Updated
   - TAD-010 mock `/videos` page is Done after repository inspection.
-  - TAD-011 mock `/videos/[id]` detail page is Ready and missing.
+  - TAD-011 mock `/videos/[id]` detail page is Done after user acceptance on ngrok.
   - TAD-020 scoring engine extraction is Done after repository inspection.
   - TAD-021 monthly trend benchmark scoring is Done after repository inspection.
   - TAD-043 developer compliance pages are Done.
@@ -70,6 +71,7 @@ Current product direction:
   - TAD-046 token persistence is Done after Neon runtime verification.
   - TAD-047 first-page TikTok video sync is Done after syncing 3 public videos into Neon.
   - TAD-048 synced videos in Video Library is Done after ngrok user acceptance testing.
+  - TAD-052 refresh synced videos after TikTok reconnect is Needs Review pending user acceptance on ngrok.
   - TAD-051 saved/favourite count metric is Backlog / P0 critical because TikTok Display API does not provide per-video saves/favorites.
   - TAD-050 Prisma schema review is Done after repository inspection.
 - Existing docs: Partial
@@ -100,14 +102,13 @@ Current product direction:
   - pnpm is detected through `apps/web/pnpm-lock.yaml` and `apps/web/pnpm-workspace.yaml`.
   - No root `package.json` or root workspace file was found.
 - Build/lint status: Done
-  - `pnpm lint` passed on 2026-07-02 using the bundled pnpm runtime.
-  - `pnpm build` passed on 2026-07-02 using the bundled pnpm runtime.
-- Any missing expected files: Partial
-  - Missing Phase 1 required route: `/videos/[id]`.
+  - `pnpm lint` passed on 2026-07-15.
+  - `pnpm build` passed on 2026-07-15 after rerunning outside the sandbox because Turbopack could not bind a local worker port inside the sandbox.
+- Any missing expected files: Partial for later phases
   - Missing later Phase 1B route: `/reports/preview`.
-  - Missing Phase 1 required UI surface: video detail with Boost Score.
+  - Phase 1 required route `/videos/[id]` now exists.
+  - Phase 1 required UI surface video detail with Boost Score now exists.
   - CSV upload UI, campaign performance table polish, and brand report preview are later Phase 1B surfaces, not blockers for TikTok API planning.
-  - Missing API route directory, which is acceptable for the current Phase 1: Mock Product UI unless explicitly needed.
   - Missing database migration files; Prisma schema exists as a draft and has now been reviewed in TAD-050, but database implementation should remain inactive until explicitly requested.
 
 ## 3. Completed Work
@@ -128,6 +129,8 @@ Current product direction:
 | 2026-07-04 | Phase 4: Real TikTok OAuth + Video Sync | TAD-046 implemented and verified secure TikTok OAuth token persistence. | `apps/web/src/app/api/tiktok/callback/route.ts`, `apps/web/src/lib/tiktok-oauth.ts`, `apps/web/src/lib/tiktok-token-store.ts`, `apps/web/src/lib/token-encryption.ts`, `docs/task-board.md`, `docs/project-status.md` | Adds server-only AES-256-GCM token encryption, Prisma upserts for `User`, `TikTokAccount`, and `TikTokToken`, token expiry metadata storage, and safe callback failure when database/encryption config is missing. `pnpm exec prisma db push` synced the schema to Neon, and safe DB verification found one user, one TikTok account, and one encrypted token row with expiry/scope metadata. |
 | 2026-07-04 | Phase 4: Real TikTok OAuth + Video Sync | TAD-047 implemented and verified first-page TikTok Display API video sync. | `apps/web/src/app/api/tiktok/sync-videos/route.ts`, `apps/web/src/lib/tiktok-display-api.ts`, `docs/task-board.md`, `docs/project-status.md` | Adds official Display API `/v2/video/list/` first-page sync with `max_count = 20`, server-only token decryption, `TikTokVideo` upserts, `TikTokAccount.lastSyncedAt` update, and safe sync metadata response. Runtime sync returned 3 videos, `hasMore=false`, and stored 3 rows in Neon without exposing token values. |
 | 2026-07-06 | Phase 4: Real TikTok OAuth + Video Sync | TAD-048 wired synced TikTok videos into the Video Library. | `apps/web/src/app/api/videos/route.ts`, `apps/web/src/app/videos/page.tsx`, `apps/web/src/app/videos/videos-client-page.tsx`, `apps/web/src/lib/tiktok-videos.ts`, `apps/web/src/lib/pre-boost.ts`, `docs/task-board.md`, `docs/project-status.md` | `/videos` reads synced TikTokVideo rows for the connected account, maps them into `TikTokDisplayVideo`, renders synced rows through the existing Pre-Boost UI, and keeps the mock fallback for demo safety. `GET /api/videos` returns safe video rows and non-sensitive account metadata only. |
+| 2026-07-15 | Phase 1: Mock Product UI | TAD-011 built the `/videos/[id]` video detail page and passed user acceptance. | `apps/web/next.config.ts`, `apps/web/src/app/page.tsx`, `apps/web/src/app/api/tiktok/debug-config/route.ts`, `apps/web/src/app/videos/[id]/page.tsx`, `apps/web/src/app/videos/videos-client-page.tsx`, `apps/web/src/lib/tiktok-oauth.ts`, `AGENTS.md`, `docs/task-board.md`, `docs/task-workflow.md`, `docs/project-status.md` | Detail route uses synced rows when present and mock fallback otherwise, shows Pre-Boost Score explanation, supported metrics, reasons, risks, suggested budget, benchmark comparison, and creative notes. `/videos` cards link to the detail route. Active ngrok host was added to `allowedDevOrigins` for clean browser dev testing. PKCE `S256` challenges now use SHA-256 base64url, `/api/tiktok/debug-config` exposes only non-secret OAuth diagnostics, OAuth start links now use plain anchors to avoid duplicate `/api/tiktok/connect` requests from client navigation, and Sandbox Login Kit requests now include `disable_auto_auth=1` to avoid silently reusing an existing TikTok web authorization session. `pnpm lint` passed; `pnpm build` passed after the known outside-sandbox rerun. Local and active ngrok HTTP checks for `/videos` and `/videos/743100000000000001` returned 200. Active ngrok OAuth shape and TikTok redirect checks passed with the expected callback, scopes, OAuth cookies, and 43-character `S256` code challenge. A direct pre-login request to TikTok's authorize URL returned HTTP 302 to `/login`, confirming TikTok accepts the request shape before account login. Safe DB dependency check passed against the configured database. User accepted on 2026-07-15 after confirming they can view video detail pages. |
+| 2026-07-15 | Phase 4: Real TikTok OAuth + Video Sync | TAD-052 refreshed synced videos after TikTok reconnect and is awaiting user acceptance. | `AGENTS.md`, `docs/task-workflow.md`, `docs/task-board.md`, `docs/project-status.md`, `apps/web/src/app/api/tiktok/callback/route.ts`, `apps/web/src/app/api/tiktok/sync-videos/route.ts`, `apps/web/src/app/videos/videos-client-page.tsx`, `apps/web/src/lib/tiktok-token-store.ts`, `apps/web/src/lib/tiktok-video-sync.ts` | Login Kit now works. The non-sandbox-target lesson is documented. Successful OAuth callback now syncs TikTok Display API videos after token persistence, manual sync and callback sync share the same helper, stale stored videos are deleted when TikTok returns a complete first page, and the cover fallback no longer marks slow TikTok CDN covers unavailable after 2.5 seconds. Manual ngrok sync after the refactor returned 5 videos, 5 cover URLs, `hasMore=false`, and `deletedStaleCount=0`; safe Prisma check confirmed 5 stored rows and 5 cover URLs. `pnpm lint` passed; `pnpm build` passed after the known outside-sandbox rerun. Status remains Needs Review until user confirms `/videos` on ngrok shows 5 rows and covers load or only fallback on true image error. |
 
 ## 4. Current In-Progress Work
 
@@ -136,15 +139,16 @@ Current product direction:
 | Planning | Single source-of-truth project status | Done | Repository inspected; status file created; lint/build status recorded; AGENTS.md rule added. | Keep this file updated before and after every future task. | Codex |
 | Planning | TAD-002 Jira-style task board and workflow | Done | `docs/task-board.md` and `docs/task-workflow.md` created; `AGENTS.md` updated with mandatory task-board workflow; lint/build passed. | Use task IDs for future work and keep task board updated before/during/after tasks. | Codex |
 | Planning | TAD-003 task board reconciliation | Done | Repository inspected; task board statuses reconciled; TAD-050 added and completed as a schema review. | Keep future work flowing through task IDs. | Codex |
-| Planning | TAD-004 documentation consistency cleanup | Done | Phase numbering and Phase 1 scope aligned across docs; TikTok Display API pagination wording clarified. | Keep TAD-011 as the next implementation task. | Codex |
+| Planning | TAD-004 documentation consistency cleanup | Done | Phase numbering and Phase 1 scope aligned across docs; TikTok Display API pagination wording clarified. | Superseded by TAD-011 completion. | Codex |
 | Phase 1 | TAD-043 developer compliance pages | Done | Public `/`, `/terms`, and `/privacy` pages created with footer links and TikTok app setup compliance copy; lint/build passed. | Keep real OAuth/API/database work out of scope until the relevant phase. | Codex |
-| Phase 1 | Mock Product UI | Partial | `/dashboard` route, `/videos` route, app shell, metric cards, primary recommendation, spend vs views chart, top videos table, Video Library, benchmark comparison, and mock Pre-Boost scoring exist. | Add required `/videos/[id]` video detail route. Treat `/reports/preview`, CSV upload mock UI, campaign table polish, and brand report preview as later Phase 1B tasks. | Codex |
+| Phase 1 | Mock Product UI | Done for required TAD-011 scope | `/dashboard`, `/videos`, `/videos/[id]`, app shell, metric cards, primary recommendation, spend vs views chart, top videos table, Video Library, benchmark comparison, mock Pre-Boost scoring, and video detail score explanation exist. User accepted `/videos/[id]` on ngrok. | Treat `/reports/preview`, CSV upload mock UI, campaign table polish, and brand report preview as later Phase 1B tasks. | Codex |
 | Phase 3 | Database Foundation draft | Reviewed draft | Prisma schema exists for `User`, `TikTokAccount`, `TikTokToken`, `TikTokVideo`, and `PreBoostScore`; TAD-050 reviewed it. | Add migrations and later models only when database work is explicitly requested. | Codex |
 | Phase 4 | TAD-044 Vercel deployment and TikTok Sandbox readiness | Done | Public `/`, `/terms`, and `/privacy` were verified; Vercel deployment settings, TikTok URL formats, Sandbox credential guidance, env variable names, `.env.example`, and `.gitignore` protections are documented. | Deploy to Vercel manually, then configure TikTok Developer Portal URLs from the deployed Vercel domain. Put real values only in `apps/web/.env.local` or Vercel Environment Variables outside the repository. | Codex |
 | Phase 4 | TAD-045 TikTok OAuth connect/callback | Done | `/api/tiktok/connect`, `/api/tiktok/callback`, server-side OAuth helper, visible Connect with TikTok links, PKCE handling, ngrok redirect alignment, TikTok `/v2/user/info/` profile fetch, and `/videos` connected account profile/stat card are implemented; lint/build passed after the real profile card update. | Token persistence and video sync stay out of scope until TAD-046/TAD-047. | Codex |
 | Phase 4 | TAD-046 TikTok OAuth token persistence | Done | Server-only token encryption helper and Prisma token persistence helper are implemented; callback persists encrypted access/refresh tokens and expiry metadata before marking the account connected. Lint/build passed on 2026-07-04. Neon schema push and safe DB verification also passed on 2026-07-04. | Follow-up TAD-047 and TAD-048 are Done. | Codex |
 | Phase 4 | TAD-047 first-page TikTok video sync | Done | `/api/tiktok/sync-videos` uses the persisted encrypted token server-side, fetches only the first Display API page with `max_count = 20`, upserts 3 TikTokVideo rows, and updates `lastSyncedAt`; lint/build/runtime sync passed on 2026-07-04. | Follow-up TAD-048 is Done. | Codex |
-| Phase 4 | TAD-048 synced videos in Video Library | Done | `/videos` and `GET /api/videos` can read synced TikTokVideo rows from Neon, map them into Display API-shaped rows, and keep mock fallback when no synced rows exist. Lint/build, safe Neon shape check, fresh TikTok sync cover check, and ngrok user acceptance passed on 2026-07-06. | Next UI task is TAD-011 video detail page. | Codex |
+| Phase 4 | TAD-048 synced videos in Video Library | Done | `/videos` and `GET /api/videos` can read synced TikTokVideo rows from Neon, map them into Display API-shaped rows, and keep mock fallback when no synced rows exist. Lint/build, safe Neon shape check, fresh TikTok sync cover check, and ngrok user acceptance passed on 2026-07-06. | Follow-up TAD-011 detail page is Done. TAD-052 remains Needs Review for refreshed sync and cover behavior. | Codex |
+| Phase 4 | TAD-052 synced-video refresh after reconnect | Needs Review | Successful OAuth callback now refreshes the TikTok video library, shared sync logic stores the latest first-page Display API rows, stale rows are removed on complete first-page sync, and slow cover loading no longer triggers the designed fallback after 2.5 seconds. Safe sync returned 5 videos and 5 cover URLs. | Wait for user acceptance on ngrok before marking Done. | Codex |
 
 ## 5. Pending Work / Backlog
 
@@ -162,13 +166,13 @@ Expected:
 - mock data only
 
 Status:
-- Partial
+- Done for required TAD-011 scope
 
 Notes:
 - Public `/`, `/terms`, and `/privacy` pages exist for TikTok developer compliance setup. TAD-043 is Done.
 - `/dashboard` exists.
 - `/videos` exists with mock TikTok Display API-shaped data and deterministic mock scoring. TAD-010 is Done.
-- `/videos/[id]` is still missing and is covered by TAD-011.
+- `/videos/[id]` exists and is covered by TAD-011; user acceptance on ngrok passed on 2026-07-15.
 - `/reports/preview` may be a later Phase 1B task and is not required before TikTok API planning.
 - Keep all Phase 1 work mock-data only.
 
@@ -185,7 +189,7 @@ Status:
 Notes:
 - Do not implement real OAuth in Phase 1.
 - The mock video library now uses fields available from TikTok Display API, which supports the later Phase 2/4 path.
-- TAD-011 remains the next Ready Phase 1 task before starting TikTok API implementation.
+- The required Phase 1 mock routes now exist. Choose or create the next task before expanding Phase 1B or later-phase work.
 
 ### Phase 3: Database Foundation
 Expected:
@@ -295,8 +299,13 @@ Notes:
 - TAD-047 runtime sync passed against TikTok Display API and Neon Postgres on 2026-07-04. The connected Sandbox account returned 3 public videos and no additional page.
 - TAD-048 safe Neon shape check passed on 2026-07-06 with 3 synced rows mapped into `TikTokDisplayVideo` shape. No access or refresh token values were printed or returned.
 - TAD-048 user acceptance passed on 2026-07-06 through the ngrok HTTPS URL. A cover-rendering issue was found during review: TikTok returned `cover_image_url` values for all synced rows, but some TikTok CDN images failed or hung in the browser. The solution was a client-side designed cover fallback for missing, failed, or slow-loading covers.
+- TAD-011 verification passed on 2026-07-15. `pnpm lint` passed, `pnpm build` passed after the known outside-sandbox Turbopack rerun, local HTTP checks for `/videos` plus `/videos/743100000000000001` returned 200, active ngrok checks for `https://ravishing-refusal-abrasive.ngrok-free.dev/videos` plus `https://ravishing-refusal-abrasive.ngrok-free.dev/videos/743100000000000001` returned 200, and the active ngrok host was added to `next.config.ts` `allowedDevOrigins`.
+- TAD-011 user acceptance hit TikTok Login Kit error `non_sandbox_target` on 2026-07-15. During the fix, an app-side PKCE bug was found and corrected: `S256` code challenges now use SHA-256 base64url instead of hex. A second app-side OAuth start issue was also corrected: `next/link` was causing duplicate `/api/tiktok/connect` requests in dev logs, so OAuth start links now use plain `<a>` navigation to avoid overwriting CSRF state and PKCE verifier cookies. The active ngrok OAuth shape check now shows Sandbox app mode, callback host `ravishing-refusal-abrasive.ngrok-free.dev`, callback path `/api/tiktok/callback`, scopes `user.info.basic,user.info.profile,user.info.stats,video.list`, expected OAuth cookies, and a 43-character `S256` code challenge. If TikTok still returns `non_sandbox_target`, likely next checks are TikTok Developer Portal Sandbox target user registration/authorization and ensuring local client key/secret are from the Sandbox app, not Production. Do not paste credentials into chat.
+- Latest TAD-011 user retest at 2026-07-15 10:44 Bangkok time still returned TikTok `non_sandbox_target` with error ID `20260715104405BFF77694C697354A2F2C`. The dev-server log showed `/api/tiktok/connect` returned a 307 redirect to TikTok, but no `/api/tiktok/callback` request arrived for that failed attempt. This means TikTok rejected the login before returning control to the app; the remaining blocker is TikTok Developer Portal Sandbox target-user / Sandbox client configuration rather than a callback implementation error.
+- Latest request/response verification after user-reported error ID `20260715105917176251C95273EF7265B7`: the app sends a valid authorize request through ngrok to `https://www.tiktok.com/v2/auth/authorize/` with the expected callback, scopes, state, PKCE `S256`, and `disable_auto_auth=1`. TikTok's pre-login HTTP response to the authorize URL is a 302 redirect to `/login`, not an immediate settings error. Therefore `non_sandbox_target` is emitted by TikTok after account login/selection, which points to the logged-in account not being recognized as an authorized target for this Sandbox/client at that moment.
 - TAD-051 was created as a P0 Backlog task for adding `Saved or Favourite` to the Video Library metric row. It stays in the backlog because TikTok Display API does not provide per-video saved/favourite counts, and the app must not scrape, infer, or fake this value. Move it to Ready/In Progress only if TikTok provides an official saved/favourite source or the product approves a clearly manual input path.
 - TAD-051 clarification: a month-to-date projection algorithm for saved/favourite is feasible once there is a raw saved/favourite input source. The projection should compare current month pace against previous month totals and must be labelled as an app calculation, not a TikTok-provided metric.
+- TAD-052 fixed the stale synced-video issue after successful Login Kit. The user confirmed login works, then found only 3 videos and unavailable covers. Manual fresh sync returned 5 Display API videos with 5 cover URLs. The root cause was stale Neon rows from 2026-07-06 plus a too-aggressive 2.5-second cover fallback. Callback sync now refreshes the video list after reconnect.
 
 ## 8. Risks / Open Questions
 
@@ -316,10 +325,10 @@ Notes:
 ## 9. Next Recommended Action
 
 Next action:
-- Start TAD-011, `Build mock /videos/[id] detail page`.
+- Wait for user acceptance on TAD-052 through the active ngrok `/videos` URL. The user should confirm the connected Video Library shows 5 synced videos and covers load or only fall back when TikTok image loading truly fails.
 
 Why:
-- TAD-048 is Done after user acceptance. TAD-011 is the remaining required Video Library detail route so users can click a video and inspect the score explanation, reasons, risks, budget tier, and supported Display API metrics.
+- Login Kit and fresh video sync now pass technically, but the updated workflow requires a user-confirmed test result before closing implementation work. TAD-051 remains Backlog because TikTok Display API does not provide an official saved/favourite source.
 
 ## 10. Mandatory Task Board Workflow
 

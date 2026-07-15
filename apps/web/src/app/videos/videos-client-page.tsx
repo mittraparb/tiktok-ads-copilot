@@ -2,6 +2,7 @@
 
 import {
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   CalendarClock,
   CheckCircle2,
@@ -13,7 +14,7 @@ import {
   Video,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/dashboard/app-shell";
 import {
@@ -309,7 +310,7 @@ export function VideosClientPage({
                     />
                   </div>
                 ) : null}
-                <Link
+                <a
                   href="/api/tiktok/connect"
                   className="mt-3 inline-flex h-8 items-center justify-center rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800"
                 >
@@ -317,8 +318,8 @@ export function VideosClientPage({
                     ? "Reconnect TikTok Sandbox"
                     : needsReconnect
                       ? "Reconnect TikTok Sandbox"
-                    : "Connect TikTok Sandbox"}
-                </Link>
+                      : "Connect TikTok Sandbox"}
+                </a>
               </div>
             </div>
           </CardContent>
@@ -606,7 +607,12 @@ function VideoCard({
             </div>
 
             <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-              {video.title}
+              <Link
+                href={`/videos/${video.id}`}
+                className="transition-colors hover:text-cyan-700"
+              >
+                {video.title}
+              </Link>
             </h3>
             <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-zinc-600">
               {video.video_description}
@@ -681,6 +687,13 @@ function VideoCard({
                 {analysis.risks[0] ?? "No major risk from available signals."}
               </div>
             </div>
+            <Link
+              href={`/videos/${video.id}`}
+              className="mt-4 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-zinc-950 px-3 text-xs font-semibold text-white transition-colors hover:bg-zinc-800"
+            >
+              View detail
+              <ArrowRight className="size-3.5" aria-hidden="true" />
+            </Link>
           </div>
         </div>
       </CardContent>
@@ -699,18 +712,6 @@ function VideoCover({
   const canTryCover = source === "synced" && coverUrl.length > 0;
   const [imageFailed, setImageFailed] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!canTryCover || imageLoaded || imageFailed) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setImageFailed(true);
-    }, 2500);
-
-    return () => window.clearTimeout(timeout);
-  }, [canTryCover, imageFailed, imageLoaded]);
 
   return (
     <div className="relative aspect-[3/4] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100">

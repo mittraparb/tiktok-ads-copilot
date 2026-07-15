@@ -14,7 +14,7 @@ Open task selection rule:
 - If no task ID is requested, use the Next Recommended Action from `docs/project-status.md` and the highest-priority Ready task on this board.
 
 Last updated:
-- 2026-07-02
+- 2026-07-15
 
 ## Epic TAD-EPIC-001: Foundation & Project Control
 
@@ -311,7 +311,7 @@ Expected files:
 Notes:
 - Verified from `apps/web/src/app/videos/page.tsx`, `apps/web/src/lib/mock-data.ts`, and `apps/web/src/lib/pre-boost.ts`.
 - `/videos` exists, uses mock Display API-shaped rows, displays metrics and Pre-Boost Score, includes search/filter/sort, and shows monthly benchmark/trend comparison.
-- The page does not link to `/videos/[id]`; that belongs to TAD-011.
+- The page now links to `/videos/[id]` from the video title and detail action after TAD-011.
 Files changed:
 - `apps/web/src/app/videos/page.tsx`
 - `apps/web/src/lib/mock-data.ts`
@@ -327,7 +327,7 @@ Last updated:
 
 ID: TAD-011
 Type: Task
-Status: Ready
+Status: Done
 Priority: P1 high
 Epic: Videos Pages
 Story: Mock Video Library
@@ -362,12 +362,46 @@ Expected files:
 - `docs/task-board.md`
 Notes:
 - Next recommended Phase 1: Mock Product UI implementation task.
+- Started on 2026-07-15.
+- Implemented on 2026-07-15.
+- Added dynamic `/videos/[id]` detail route. It uses synced TikTokVideo rows when a connected account has synced rows and safely falls back to the mock Display API-shaped dataset otherwise.
+- Detail page shows video metric summary, Pre-Boost Score, recommendation, suggested budget, trend delta, Display API scoring signals versus monthly benchmarks, reasons, risks, and creative notes from title/caption/duration/engagement mix.
+- `/videos` cards now link to the detail page from the video title and score-panel action.
+- No unsupported metrics were added. The detail page does not show saves/favorites, watch time, retention, profile visits, follows gained, traffic source, or top comments.
+- Added the active ngrok host to `next.config.ts` `allowedDevOrigins` so browser testing through ngrok can use Next.js dev resources cleanly.
+- User accepted TAD-011 on 2026-07-15 after confirming they can open video details from the Video Library.
+- User acceptance hit TikTok Login Kit error `non_sandbox_target` on 2026-07-15. Local env points to Sandbox and the active ngrok callback, so this appears to require TikTok Developer Portal Sandbox target-user/client-key settings review before connected-account testing can pass.
+- Fixed an app-side OAuth issue found during the `non_sandbox_target` investigation: PKCE `S256` code challenges are now SHA-256 base64url instead of hex.
+- Added `GET /api/tiktok/debug-config` as a safe non-secret diagnostic endpoint for OAuth shape checks. It reports hosts, paths, scope names, boolean config presence, and a short client-key fingerprint only; it does not return secrets, tokens, cookies, or verifier values.
+- Replaced `next/link` OAuth start links with plain `<a>` navigation on `/` and `/videos` after dev-server logs showed client navigation can request `/api/tiktok/connect` twice. This avoids overwriting the CSRF state and PKCE verifier cookies before TikTok returns to the callback.
+- User retested at 2026-07-15 10:44 Bangkok time and still received TikTok Login Kit `non_sandbox_target` after login. Dev-server logs show `/api/tiktok/connect` returned a TikTok 307 redirect, but no matching `/api/tiktok/callback` request arrived for that failed attempt. The failure is occurring inside TikTok before the app receives control, so the remaining blocker is TikTok Developer Portal Sandbox target-user / Sandbox client configuration.
+- Added `disable_auto_auth=1` to the TikTok authorization URL for Sandbox testing so TikTok does not silently reuse an existing web authorization session during Login Kit tests.
+- Verified the live outbound request/response through ngrok after user granted permission to inspect request and response: `/api/tiktok/connect` returns HTTP 307 to `https://www.tiktok.com/v2/auth/authorize/` with `client_key`, exact ngrok callback, response type `code`, scopes `user.info.basic,user.info.profile,user.info.stats,video.list`, 64-character state, 43-character base64url PKCE challenge, `S256`, and `disable_auto_auth=1`. A direct pre-login request to that TikTok authorize URL returned HTTP 302 to `https://www.tiktok.com/login` with a Sandbox-looking `enter_from` value, which confirms TikTok accepts the authorize request shape before account login.
 Files changed:
-- None yet.
+- `apps/web/next.config.ts`
+- `apps/web/src/app/page.tsx`
+- `apps/web/src/app/api/tiktok/debug-config/route.ts`
+- `apps/web/src/app/videos/[id]/page.tsx`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/lib/tiktok-oauth.ts`
+- `AGENTS.md`
+- `docs/task-board.md`
+- `docs/task-workflow.md`
+- `docs/project-status.md`
 Build/lint/test result:
-- Not run yet.
+- `pnpm lint` passed on 2026-07-15.
+- `pnpm build` initially hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-15 when rerun outside the sandbox.
+- Local HTTP checks passed on 2026-07-15: `/videos` returned 200 and `/videos/743100000000000001` returned 200 from the dev server.
+- Active ngrok checks passed on 2026-07-15 after dev-server restart: `https://ravishing-refusal-abrasive.ngrok-free.dev/videos` returned 200 and `https://ravishing-refusal-abrasive.ngrok-free.dev/videos/743100000000000001` returned 200.
+- OAuth shape check passed on 2026-07-15 through active ngrok: `/api/tiktok/debug-config` returned Sandbox app mode, callback host `ravishing-refusal-abrasive.ngrok-free.dev`, callback path `/api/tiktok/callback`, scopes `user.info.basic,user.info.profile,user.info.stats,video.list`, and a 43-character `S256` code challenge.
+- TikTok redirect check passed on 2026-07-15 through active ngrok: `/api/tiktok/connect` redirects to `https://www.tiktok.com/v2/auth/authorize/` with the active ngrok callback, CSRF state, PKCE `code_challenge_method=S256`, and 43-character code challenge.
+- Second OAuth incident check passed on 2026-07-15 after converting OAuth start links to plain anchors: `pnpm lint` passed, `pnpm build` passed after the known outside-sandbox Turbopack rerun, active ngrok `/videos` returned 200, `/api/tiktok/debug-config` returned 200, and `/api/tiktok/connect` returned one TikTok 307 redirect with expected OAuth cookies, active ngrok callback, 64-character state, and 43-character `S256` code challenge.
+- Safe dependency check passed on 2026-07-15: the Next.js dev server is running on port 3000, active ngrok is serving the app, required local env variables are present without printing secret values, and Prisma can reach the configured database with 1 user, 1 TikTok account, 1 token row, and 3 video rows.
+- Latest failed user retest evidence: after the user reported TikTok error ID `20260715104405BFF77694C697354A2F2C`, the dev-server log showed the connect route was hit and redirected to TikTok, but no callback route was hit for that failed login attempt.
+- Request/response verification passed on 2026-07-15 after adding `disable_auto_auth=1`: `pnpm lint` passed, `pnpm build` passed after the known outside-sandbox Turbopack rerun, active ngrok `/api/tiktok/connect` returned HTTP 307 to TikTok with the expected non-secret OAuth parameters, and TikTok's pre-login response to the authorize URL returned HTTP 302 to `/login`.
+- User acceptance passed on 2026-07-15: user confirmed they can view video detail pages.
 Last updated:
-- 2026-07-02
+- 2026-07-15
 
 ## Epic TAD-EPIC-003: Scoring Engine
 
@@ -880,6 +914,77 @@ Build/lint/test result:
 - User confirmed TAD-048 passed on 2026-07-06.
 Last updated:
 - 2026-07-06
+
+### TAD-052
+
+ID: TAD-052
+Type: Bug
+Status: Needs Review
+Priority: P0 critical
+Epic: TikTok Authentication
+Story: Authenticate with TikTok and test
+Title: Refresh synced videos after TikTok reconnect
+Goal: Ensure the connected Video Library shows the latest TikTok Display API rows and fresh cover URLs after a successful Login Kit reconnect.
+Scope:
+- Document the resolved `non_sandbox_target` Sandbox Login Kit lesson.
+- Refresh TikTok Display API video rows immediately after successful OAuth callback token persistence.
+- Reuse the same sync implementation for callback sync and manual `POST /api/tiktok/sync-videos`.
+- Remove stale DB video rows when TikTok returns a complete first page with `has_more=false`.
+- Avoid prematurely marking slow TikTok CDN covers as unavailable.
+Out of scope:
+- Fetching additional Display API pages beyond the first page.
+- Token refresh flow.
+- TikTok Business API.
+- Scraping TikTok or browser automation.
+- Unsupported metrics such as saves/favorites, watch time, retention, or profile visits per video.
+Acceptance criteria:
+- Successful TikTok reconnect refreshes the synced Video Library before the user opens `/videos`.
+- Manual `POST /api/tiktok/sync-videos` and callback sync use the same persistence logic.
+- Current Sandbox account sync stores 5 Display API videos and 5 cover URLs.
+- Video Library no longer marks covers unavailable only because they take more than 2.5 seconds to load.
+- Test handoff includes the active ngrok URL and DoD.
+Dependencies:
+- TAD-045
+- TAD-046
+- TAD-047
+- TAD-048
+Expected files:
+- `AGENTS.md`
+- `docs/task-workflow.md`
+- `docs/task-board.md`
+- `docs/project-status.md`
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/app/api/tiktok/sync-videos/route.ts`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/lib/tiktok-token-store.ts`
+- `apps/web/src/lib/tiktok-video-sync.ts`
+Notes:
+- Created on 2026-07-15 after user confirmed Login Kit now works but reported only 3 videos and unavailable covers while TikTok has 5 videos.
+- Root cause: Login Kit reconnect persisted fresh token/profile but did not automatically refresh the video list. `/videos` was showing stale Neon rows last synced on 2026-07-06, including signed TikTok CDN cover URLs that could expire or load slowly.
+- Durable OAuth lesson recorded: use `disable_auto_auth=1` during Sandbox testing; if `non_sandbox_target` appears after login and callback is not reached, inspect Sandbox target-user/session state instead of repeatedly changing the callback route.
+- Manual fresh sync on 2026-07-15 returned 5 videos from TikTok Display API, `hasMore=false`, and 5 non-empty `cover_image_url` values.
+- One returned cover URL was fetched directly and returned HTTP 200 with `image/webp`, confirming at least fresh TikTok cover URLs are reachable outside the app.
+- Callback now runs video sync immediately after token persistence when `video.list` is granted. Sync failure is non-fatal to login and is shown in the callback success page.
+- `POST /api/tiktok/sync-videos` now uses shared sync logic from `apps/web/src/lib/tiktok-video-sync.ts`.
+- The list cover component no longer uses a 2.5 second timeout to mark covers unavailable. It only falls back when the image fails to load.
+Files changed:
+- `AGENTS.md`
+- `docs/task-workflow.md`
+- `docs/task-board.md`
+- `docs/project-status.md`
+- `apps/web/src/app/api/tiktok/callback/route.ts`
+- `apps/web/src/app/api/tiktok/sync-videos/route.ts`
+- `apps/web/src/app/videos/videos-client-page.tsx`
+- `apps/web/src/lib/tiktok-token-store.ts`
+- `apps/web/src/lib/tiktok-video-sync.ts`
+Build/lint/test result:
+- `POST /api/tiktok/sync-videos` through active ngrok passed on 2026-07-15 with `syncedCount=5`, `hasMore=false`, `skippedCount=0`, `deletedStaleCount=0`, and 5 returned `cover_image_url` values after the shared sync helper refactor.
+- Safe Prisma check passed on 2026-07-15 with 5 synced TikTokVideo rows and 5 non-empty cover URLs for the connected account.
+- Dev-server log showed successful callback on 2026-07-15: `/api/tiktok/callback` returned 200, then `/videos` returned 200.
+- `pnpm lint` passed on 2026-07-15.
+- `pnpm build` initially hit the known Turbopack sandbox port-binding issue, then passed on 2026-07-15 when rerun outside the sandbox.
+Last updated:
+- 2026-07-15
 
 ### TAD-051
 

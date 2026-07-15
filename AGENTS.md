@@ -412,6 +412,13 @@ Use only:
 
 Keep product language decision-support oriented. Recommendations should be framed as guidance based on available signals, not guarantees.
 
+## TikTok Sandbox Debugging Lessons
+
+- For TikTok Login Kit Sandbox testing, always send users through the active ngrok HTTPS URL and use the Sandbox client key/secret for the exact Sandbox app shown in Developer Portal.
+- Include `disable_auto_auth=1` in Sandbox authorization URLs so TikTok does not silently reuse an existing browser session for the wrong account during target-user testing.
+- If TikTok returns `non_sandbox_target` after login and the app does not receive `/api/tiktok/callback`, the failure is inside TikTok's Sandbox account authorization step, not the callback route. Verify the logged-in account is the Sandbox target user, use a private window, apply portal changes, and allow propagation time.
+- After a successful reconnect, refresh TikTok Display API video sync before judging Video Library count or covers. Persisted rows and signed TikTok CDN `cover_image_url` values can become stale.
+
 ## Coding Behavior
 
 - Keep changes small and phased.
@@ -452,7 +459,10 @@ After completing any future task:
 6. Add bugs found or created.
 7. Update docs/project-status.md.
 8. Set the next recommended action.
-9. Summarize the task ID, result, files changed, and next task.
+9. Provide the user-facing test URL and Definition of Done checklist.
+10. For TikTok OAuth, connected-account, synced-video, or cookie-dependent work, provide the active ngrok HTTPS URL instead of localhost.
+11. Wait for the user to confirm the acceptance-test result before marking the task Done; use Needs Review while waiting.
+12. Summarize the task ID, result, files changed, and next task.
 
 When the user says the work is done for today:
 1. Summarize what was completed during the day.

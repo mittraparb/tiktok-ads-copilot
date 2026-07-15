@@ -16,6 +16,7 @@ import {
   TIKTOK_OAUTH_STATE_COOKIE,
 } from "@/lib/tiktok-oauth";
 import { persistTikTokOAuthSession } from "@/lib/tiktok-token-store";
+import { syncTikTokVideosForAccount } from "@/lib/tiktok-video-sync";
 
 const CONNECTED_MAX_AGE_SECONDS = 60 * 60;
 
@@ -166,6 +167,14 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const videoSyncResult = grantedScope
+    .split(/[,\s]+/)
+    .includes("video.list")
+    ? await syncTikTokVideosForAccount({
+        accessToken: tokenResult.token.access_token,
+        accountId: persistenceResult.accountId,
+      })
+    : null;
   const connectedMaxAge = Math.min(
     tokenResult.token.expires_in,
     CONNECTED_MAX_AGE_SECONDS
@@ -226,7 +235,7 @@ export async function GET(request: NextRequest) {
       `Refresh token expires at ${persistenceResult.refreshExpiresAt.toISOString()}.`,
       "Access and refresh token values were encrypted before storage and were not printed or exposed to the browser.",
       `Granted scopes: ${grantedScope}`,
-      "Next task: sync the first page of TikTok videos.",
+      getVideoSyncMessage(videoSyncResult),
     ],
     actionHref: "/videos",
     actionLabel: "Open Video Library",
@@ -255,6 +264,20 @@ function getMissingConnectedAccountScopes(scope: string) {
   ];
 
   return requiredScopes.filter((requiredScope) => !grantedScopes.has(requiredScope));
+}
+
+function getVideoSyncMessage(
+  syncResult: Awaited<ReturnType<typeof syncTikTokVideosForAccount>> | null
+) {
+  if (!syncResult) {
+    return "Video sync was skipped because video.list was not granted.";
+  }
+
+  if (!syncResult.ok) {
+    return `Video sync needs retry: ${syncResult.failure.errorDescription}`;
+  }
+
+  return `Video library refreshed: ${syncResult.syncedCount} videos synced from TikTok Display API.`;
 }
 
 function htmlResponse({

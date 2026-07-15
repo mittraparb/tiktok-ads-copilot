@@ -81,7 +81,9 @@ After completing a task:
 6. Add bugs found or created.
 7. Update `docs/project-status.md`.
 8. Set the next recommended action.
-9. Summarize the task ID, result, files changed, and next task.
+9. Provide the user-facing test URL and Definition of Done checklist.
+10. Wait for the user to confirm the acceptance-test result before marking the task `Done`; use `Needs Review` while waiting.
+11. Summarize the task ID, result, files changed, and next task.
 
 ## Local Acceptance Testing
 
@@ -89,7 +91,11 @@ After completing a task:
 - For TikTok OAuth, connected-account state, synced video library, or any feature that depends on the connected TikTok cookies, test through the same public origin used for OAuth callback setup.
 - In local development, that usually means the active ngrok HTTPS URL, for example `https://current-ngrok-domain/videos`, not `http://localhost:3000/videos`.
 - Reason: browser cookies are scoped by host. A TikTok login completed on an ngrok domain will not make the same connected cookies available on `localhost`, so localhost may correctly fall back to mock data.
+- For TikTok Sandbox Login Kit, include `disable_auto_auth=1` in authorization URLs during testing so an existing TikTok browser session does not silently authorize the wrong account.
+- If Login Kit returns `non_sandbox_target` after account login and the app logs no `/api/tiktok/callback`, treat it as a TikTok Sandbox target-user/session issue, not a callback implementation bug.
+- After successful Login Kit reconnect, refresh the TikTok Display API video sync before judging Video Library count or cover rendering. Saved rows and signed TikTok CDN cover URLs can become stale.
 - Do not mark OAuth/session-dependent tasks as `Done` until the user confirms acceptance on the correct public test URL.
+- At implementation handoff, include the exact active ngrok URL for testing and a concise DoD checklist for the user to verify.
 - Do not commit `.env.local` or `.ngrok/ngrok.yml`; update only docs and safe source files.
 
 ## End-of-Day Closeout

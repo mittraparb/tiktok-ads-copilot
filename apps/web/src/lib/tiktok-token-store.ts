@@ -13,6 +13,7 @@ const SANDBOX_USER_NAME = "TikTok Sandbox User";
 export type TokenPersistenceResult =
   | {
       ok: true;
+      accountId: string;
       expiresAt: Date;
       refreshExpiresAt: Date;
     }
@@ -40,7 +41,7 @@ export async function persistTikTokOAuthSession({
   const encryptedRefreshToken = encryptSecret(token.refresh_token, config.key);
 
   try {
-    await prisma.$transaction(async (tx) => {
+    const persisted = await prisma.$transaction(async (tx) => {
       const user = await tx.user.upsert({
         where: {
           email: SANDBOX_USER_EMAIL,
@@ -100,10 +101,15 @@ export async function persistTikTokOAuthSession({
           tokenType: token.token_type,
         },
       });
+
+      return {
+        accountId: account.id,
+      };
     });
 
     return {
       ok: true,
+      accountId: persisted.accountId,
       expiresAt,
       refreshExpiresAt,
     };
